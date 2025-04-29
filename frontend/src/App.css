@@ -1,53 +1,144 @@
-/* Basic resets and page setup */
+/* Modern resets and page setup */
 * {
   box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --primary-gradient: linear-gradient(135deg, #4CAF50, #2E7D32);
+  --card-gradient: linear-gradient(135deg, #f9f9f9, #f0f0f0);
+  --card-hover-gradient: linear-gradient(135deg, #f0f0f0, #e9e9e9);
+  --card-shadow: 0 8px 20px rgba(0, 0, 0, 0.05);
+  --card-hover-shadow: 0 12px 28px rgba(0, 0, 0, 0.12);
+  --transition-speed: 0.3s;
+  --border-radius: 12px;
+  --text-primary: #333;
+  --text-secondary: #6b6b6b;
+  --text-light: #f9f9f9;
+  --accent-color: #4CAF50;
+  --accent-hover: #2E7D32;
+  --error-color: #d32f2f;
 }
 
 body {
-  background-color: #f9f9f9;
-  color: #333;
+  background-color: #fafafa;
+  color: var(--text-primary);
   font-family: 'Roboto', 'Helvetica', 'Arial', sans-serif;
+  line-height: 1.6;
 }
 
 /* Custom scrollbar styles */
 ::-webkit-scrollbar {
-  width: 8px;
+  width: 6px;
 }
 
 ::-webkit-scrollbar-track {
   background: #f1f1f1;
+  border-radius: 10px;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #888;
-  border-radius: 4px;
+  background: #c1c1c1;
+  border-radius: 10px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #555;
+  background: #a8a8a8;
 }
 
 /* Custom link styles */
 a {
-  color: #2e7d32;
+  color: var(--accent-color);
   text-decoration: none;
+  transition: color var(--transition-speed) ease;
 }
 
 a:hover {
-  text-decoration: underline;
+  color: var(--accent-hover);
+  text-decoration: none;
 }
 
 /* Finance app specific styles */
 .currency {
   font-family: 'Roboto Mono', monospace;
+  font-weight: 500;
 }
 
 .positive {
   color: #2e7d32;
+  font-weight: 500;
 }
 
 .negative {
   color: #d32f2f;
+  font-weight: 500;
+}
+
+/* Modern card styles */
+.modern-card {
+  background: var(--card-gradient);
+  border-radius: var(--border-radius);
+  box-shadow: var(--card-shadow);
+  transition: all var(--transition-speed) ease;
+  overflow: hidden;
+}
+
+.modern-card:hover {
+  background: var(--card-hover-gradient);
+  box-shadow: var(--card-hover-shadow);
+  transform: translateY(-3px);
+}
+
+/* Account cards with gradient borders */
+.account-card {
+  position: relative;
+  border-radius: var(--border-radius);
+  overflow: hidden;
+}
+
+.account-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: var(--primary-gradient);
+}
+
+/* App header styling */
+.app-header {
+  background: var(--primary-gradient);
+  color: var(--text-light);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+/* Form styling */
+.form-container {
+  background: white;
+  border-radius: var(--border-radius);
+  box-shadow: var(--card-shadow);
+  padding: 2rem;
+}
+
+.form-field {
+  margin-bottom: 1.5rem;
+}
+
+/* Button styling */
+.modern-button {
+  border-radius: 30px;
+  text-transform: none;
+  letter-spacing: 0.5px;
+  font-weight: 500;
+  padding: 10px 24px;
+  transition: all var(--transition-speed) ease;
+}
+
+.modern-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
 /* Animation for loading states */
@@ -65,6 +156,22 @@ a:hover {
 
 .pulse {
   animation: pulse 1.5s infinite ease-in-out;
+}
+
+/* Fade in animation */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fade-in {
+  animation: fadeIn 0.5s ease-in-out;
 }
 
 .App {
