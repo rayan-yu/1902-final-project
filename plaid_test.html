@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Plaid Link Test</title>
+  <script src="https://cdn.plaid.com/link/v2/stable/link-initialize.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    button {
+      background-color: #2d7cee;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 16px;
+    }
+    pre {
+      background-color: #f5f5f5;
+      padding: 15px;
+      border-radius: 4px;
+      overflow-x: auto;
+    }
+    .step {
+      margin-bottom: 20px;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+    }
+    h3 {
+      margin-top: 0;
+    }
+    input {
+      padding: 8px;
+      width: 100%;
+      box-sizing: border-box;
+      margin-bottom: 10px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Plaid Link Test</h1>
+  
+  <div class="step">
+    <h3>Step 1: Get JWT Token</h3>
+    <div>
+      <label>Username:</label>
+      <input type="text" id="username" />
+      <label>Password:</label>
+      <input type="password" id="password" />
+      <button id="get-token-btn">Get JWT Token</button>
+    </div>
+    <pre id="token-result">JWT token will appear here</pre>
+  </div>
+  
+  <div class="step">
+    <h3>Step 2: Get Link Token</h3>
+    <button id="get-link-token-btn" disabled>Get Link Token</button>
+    <pre id="link-token-result">Link token will appear here</pre>
+  </div>
+  
+  <div class="step">
+    <h3>Step 3: Connect Bank Account</h3>
+    <button id="link-button" disabled>Connect a bank account</button>
+    <pre id="link-result">Result will appear here</pre>
+  </div>
+  
+  <div class="step">
+    <h3>Step 4: Exchange Public Token</h3>
+    <button id="exchange-token-btn" disabled>Exchange Public Token</button>
+    <pre id="exchange-result">Result will appear here</pre>
+  </div>
+  
+  <script>
+    let jwtToken = '';
+    let linkToken = '';
+    let publicToken = '';
+    
+    // Step 1: Get JWT Token
+    document.getElementById('get-token-btn').onclick = async function() {
+      const username = document.getElementById('username').value;
+      const password = document.getElementById('password').value;
+      
+      if (!username || !password) {
+        document.getElementById('token-result').textContent = 'Please enter username and password';
+        return;
+      }
+      
+      try {
+        document.getElementById('token-result').textContent = 'Fetching token...';
+        const response = await fetch('http://localhost:8000/api/token/', {
+          method: 'POST',
+          mode: 'cors',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify({
+            username: username,
+            password: password
+          })
+        });
+        
+        const data = await response.json();
+        console.log('Token response:', data);
+        
+        if (data.access) {
+          jwtToken = data.access;
+          document.getElementById('token-result').textContent = `Success! Token: ${jwtToken.substring(0, 20)}...`;
+          document.getElementById('get-link-token-btn').disabled = false;
+        } else {
+          document.getElementById('token-result').textContent = `Error: ${JSON.stringify(data)}`;
+        }
+      } catch (error) {
+        console.error('Token fetch error:', error);
+        document.getElementById('token-result').textContent = `Error: ${error.message}`;
+      }
+    };
+    
+    // Step 2: Get Link Token
+    document.getElementById('get-link-token-btn').onclick = async function() {
+      try {
+        document.getElementById('link-token-result').textContent = 'Fetching link token...';
+        const response = await fetch('http://localhost:8000/api/link-token/', {
+          method: 'GET',
+          mode: 'cors',
+          headers: {
+            'Authorization': `Bearer ${jwtToken}`,
+            'Accept': 'application/json'
+          }
+        });
+        
+        const data = await response.json();
+        console.log('Link token response:', data);
+        
+        if (data.link_token) {
+          linkToken = data.link_token;
+          document.getElementById('link-token-result').textContent = `Success! Link Token: ${linkToken.substring(0, 20)}...`;
+          document.getElementById('link-button').disabled = false;
+        } else {
+          document.getElementById('link-token-result').textContent = `Error: ${JSON.stringify(data)}`;
+        }
+      } catch (error) {
+        console.error('Link token fetch error:', error);
+        document.getElementById('link-token-result').textContent = `Error: ${error.message}`;
+      }
+    };
+    
+    // Step 3: Initialize Plaid Link
+    document.getElementById('link-button').onclick = function() {
+      const handler = Plaid.create({
+        token: linkToken,
+        onSuccess: (public_token, metadata) => {
+          publicToken = public_token;
+          console.log('Plaid Link success:', public_token, metadata);
+          document.getElementById('link-result').textContent = 
+            `Success! Public Token: ${public_token.substring(0, 20)}...\n\nMetadata: ${JSON.stringify(metadata, null, 2)}`;
+          document.getElementById('exchange-token-btn').disabled = false;
+        },
+        onExit: (err, metadata) => {
+          console.log('Plaid Link exit:', err, metadata);
+          if (err) {
+            document.getElementById('link-result').textContent = `Error: ${JSON.stringify(err)}`;
+          }
+        },
+      });
+      handler.open();
+    };
+    
+    // Step 4: Exchange Public Token
+    document.getElementById('exchange-token-btn').onclick = async function() {
+      try {
+        document.getElementById('exchange-result').textContent = 'Exchanging token...';
+        const response = await fetch('http://localhost:8000/api/exchange-token/', {
+          method: 'POST',
+          mode: 'cors',
+          headers: {
+            'Authorization': `Bearer ${jwtToken}`,
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify({
+            public_token: publicToken
+          })
+        });
+        
+        const data = await response.json();
+        console.log('Exchange token response:', data);
+        document.getElementById('exchange-result').textContent = `Response: ${JSON.stringify(data, null, 2)}`;
+      } catch (error) {
+        console.error('Exchange token error:', error);
+        document.getElementById('exchange-result').textContent = `Error: ${error.message}`;
+      }
+    };
+  </script>
+</body>
+</html> 

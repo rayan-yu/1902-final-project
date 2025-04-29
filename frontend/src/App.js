@@ -10,9 +10,6 @@ import PlaidLink from './components/PlaidLink';
 import NotFound from './components/NotFound';
 import { CssBaseline, createTheme, ThemeProvider } from '@mui/material';
 
-// Configure axios to work with Django backend
-import axios from 'axios';
-
 // Create a custom theme
 const theme = createTheme({
   palette: {
@@ -24,7 +21,6 @@ const theme = createTheme({
     },
   },
 });
-axios.defaults.baseURL = 'http://localhost:8000';  // Django backend URL
 
 function App() {
   return (
