@@ -3,7 +3,9 @@ from .views import (
     CreateLinkToken,
     ExchangePublicToken,
     AccountsList,
-    TransactionsList
+    TransactionsList,
+    UnlinkAccount,
+    UnlinkAllAccounts
 )
 
 urlpatterns = [
@@ -14,4 +16,8 @@ urlpatterns = [
     # Data retrieval endpoints
     path('accounts/', AccountsList.as_view(), name='accounts_list'),
     path('transactions/', TransactionsList.as_view(), name='transactions_list'),
+    
+    # Account management endpoints
+    path('accounts/<int:account_id>/unlink/', UnlinkAccount.as_view(), name='unlink_account'),
+    path('accounts/unlink-all/', UnlinkAllAccounts.as_view(), name='unlink_all_accounts'),
 ] 

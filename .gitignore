@@ -1,3 +1,4 @@
 backend/.env
 backend/venv/
-plan.md
+old-plans/
+node_modules/

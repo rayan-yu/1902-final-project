@@ -1,3 +1,72 @@
+/* Basic resets and page setup */
+* {
+  box-sizing: border-box;
+}
+
+body {
+  background-color: #f9f9f9;
+  color: #333;
+  font-family: 'Roboto', 'Helvetica', 'Arial', sans-serif;
+}
+
+/* Custom scrollbar styles */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+/* Custom link styles */
+a {
+  color: #2e7d32;
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+/* Finance app specific styles */
+.currency {
+  font-family: 'Roboto Mono', monospace;
+}
+
+.positive {
+  color: #2e7d32;
+}
+
+.negative {
+  color: #d32f2f;
+}
+
+/* Animation for loading states */
+@keyframes pulse {
+  0% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.6;
+  }
+}
+
+.pulse {
+  animation: pulse 1.5s infinite ease-in-out;
+}
+
 .App {
   text-align: center;
 }

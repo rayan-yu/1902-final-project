@@ -13,6 +13,10 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 from pathlib import Path
 import os
 from datetime import timedelta
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv(Path(Path(__file__).resolve().parent.parent, '.env'))
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -27,7 +31,7 @@ SECRET_KEY = 'django-insecure-%@vfnm*+ofu!g=#wv2%i1k_b(i^oa$&*k+qe)=b#5r_rv1^)ge
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*']
 
 
 # Application definition
@@ -62,9 +66,10 @@ MIDDLEWARE = [
 ]
 
 # CORS Settings
-CORS_ALLOW_ALL_ORIGINS = False
+CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",  # React development server
+    "null",                   # File system origin
 ]
 
 # REST Framework settings
@@ -158,4 +163,4 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # Load environment variables for Plaid
 PLAID_CLIENT_ID = os.getenv('PLAID_CLIENT_ID')
 PLAID_SECRET = os.getenv('PLAID_SECRET')
-PLAID_ENV = os.getenv('PLAID_ENV', 'sandbox')
+PLAID_ENV = os.getenv('PLAID_ENV')

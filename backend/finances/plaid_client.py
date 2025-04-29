@@ -12,6 +12,10 @@ def get_plaid_client():
     secret = settings.PLAID_SECRET
     environment = settings.PLAID_ENV
     
+    # print(f"PLAID_CLIENT_ID: {client_id}")
+    # print(f"PLAID_SECRET: {secret}")
+    # print(f"PLAID_ENV: {environment}")
+    
     # Determine the Plaid environment
     if environment == 'sandbox':
         host = plaid.Environment.Sandbox
@@ -32,5 +36,16 @@ def get_plaid_client():
         }
     )
     
+    # Create API client with proper configurations
     api_client = plaid.ApiClient(configuration)
+    
+    # Fix SSL verification issue (development only)
+    api_client.rest_client.pool_manager.connection_pool_kw['cert_reqs'] = 'CERT_NONE'
+    
+    # Fix header handling - ensure all default headers have string values
+    default_headers = api_client.default_headers
+    for key in list(default_headers.keys()):
+        if default_headers[key] is None:
+            default_headers.pop(key)
+    
     return plaid_api.PlaidApi(api_client) 

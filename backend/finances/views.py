@@ -11,6 +11,11 @@ import datetime
 import plaid
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
+import logging
+import traceback
+
+# Create logger
+logger = logging.getLogger(__name__)
 
 # Create your views here.
 
@@ -35,10 +40,17 @@ class CreateLinkToken(APIView):
                 'language': 'en'
             }
             
+            logger.info(f"Creating link token with request: {link_token_request}")
             response = client.link_token_create(link_token_request)
+            logger.info("Link token created successfully")
             return Response({'link_token': response['link_token']})
         except plaid.ApiException as e:
+            logger.error(f"Plaid API Exception: {str(e)}")
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            logger.error(f"Unexpected error: {str(e)}")
+            logger.error(traceback.format_exc())
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 @method_decorator(csrf_exempt, name='dispatch')
 class ExchangePublicToken(APIView):
@@ -190,3 +202,90 @@ class TransactionsList(APIView):
         
         serializer = TransactionSerializer(transactions_query, many=True)
         return Response(serializer.data)
+
+class UnlinkAccount(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def delete(self, request, account_id):
+        """
+        Unlink an account from the user's profile
+        """
+        # Get the account
+        account = get_object_or_404(Account, id=account_id)
+        
+        # Check that the account belongs to the current user
+        if account.plaid_item.user != request.user:
+            return Response(
+                {"error": "You do not have permission to unlink this account"}, 
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        # Get all accounts associated with this item
+        associated_accounts = Account.objects.filter(plaid_item=account.plaid_item)
+        
+        # If this is the only account for this item, remove the item too
+        if associated_accounts.count() == 1:
+            # Get the item to remove
+            plaid_item = account.plaid_item
+            
+            # Remove all transactions first (due to foreign key constraints)
+            Transaction.objects.filter(account=account).delete()
+            
+            # Remove the account
+            account.delete()
+            
+            # Remove the item
+            plaid_item.delete()
+            
+            return Response(
+                {"status": "success", "message": "Account and associated item have been unlinked"}, 
+                status=status.HTTP_200_OK
+            )
+        else:
+            # Remove all transactions first (due to foreign key constraints)
+            Transaction.objects.filter(account=account).delete()
+            
+            # Remove just this account
+            account.delete()
+            
+            return Response(
+                {"status": "success", "message": "Account has been unlinked"}, 
+                status=status.HTTP_200_OK
+            )
+
+class UnlinkAllAccounts(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def delete(self, request):
+        """
+        Unlink all accounts for the authenticated user
+        """
+        try:
+            # Get all PlaidItems for the user
+            plaid_items = PlaidItem.objects.filter(user=request.user)
+            
+            if not plaid_items.exists():
+                return Response(
+                    {"status": "success", "message": "No accounts to unlink"}, 
+                    status=status.HTTP_200_OK
+                )
+            
+            # Delete all accounts (and their transactions due to cascading)
+            accounts_count = Account.objects.filter(plaid_item__in=plaid_items).count()
+            Transaction.objects.filter(account__plaid_item__in=plaid_items).delete()
+            Account.objects.filter(plaid_item__in=plaid_items).delete()
+            
+            # Delete all PlaidItems
+            plaid_items.delete()
+            
+            return Response(
+                {"status": "success", "message": f"Successfully unlinked {accounts_count} accounts"},
+                status=status.HTTP_200_OK
+            )
+        except Exception as e:
+            logger.error(f"Error unlinking all accounts: {str(e)}")
+            logger.error(traceback.format_exc())
+            return Response(
+                {"error": "Failed to unlink accounts"}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
