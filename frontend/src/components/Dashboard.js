@@ -2,34 +2,30 @@ import React, { useState, useEffect, useContext, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import { getLinkToken, getAccounts, unlinkAccount, unlinkAllAccounts, getTransactions } from '../utils/api';
+
+// Material UI Components
 import { 
-  Container, 
+  Box, 
   Typography, 
   Button, 
-  Box, 
-  AppBar, 
-  Toolbar, 
-  IconButton, 
-  Menu, 
-  MenuItem,
-  CircularProgress,
+  Drawer,
+  List,
+  ListItem,
+  ListItemIcon,
+  ListItemText,
   Avatar,
+  Chip,
+  IconButton,
+  Divider,
   Card,
   CardContent,
   Grid,
-  Divider,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
-  List,
-  ListItem,
-  ListItemText,
-  ListItemSecondaryAction,
-  Tooltip,
-  useTheme,
-  useMediaQuery,
-  Fade,
+  CircularProgress,
+  Paper,
   Tabs,
   Tab,
   Table,
@@ -38,62 +34,112 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  Paper,
-  Chip
+  Tooltip,
+  Menu,
+  MenuItem,
+  useTheme,
+  useMediaQuery,
+  Fade,
+  Grow,
+  Collapse
 } from '@mui/material';
-import AccountCircleIcon from '@mui/icons-material/AccountCircle';
-import AccountBalanceIcon from '@mui/icons-material/AccountBalance';
-import LinkOffIcon from '@mui/icons-material/LinkOff';
-import DeleteSweepIcon from '@mui/icons-material/DeleteSweep';
-import AddCircleIcon from '@mui/icons-material/AddCircle';
-import DashboardIcon from '@mui/icons-material/Dashboard';
-import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
-import PlaceIcon from '@mui/icons-material/Place';
-import DateRangeIcon from '@mui/icons-material/DateRange';
-import CategoryIcon from '@mui/icons-material/Category';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell, Legend } from 'recharts';
 
-// Function to generate a unique gradient for each account based on institution name
+// Icons
+import DashboardRoundedIcon from '@mui/icons-material/DashboardRounded';
+import AccountBalanceRoundedIcon from '@mui/icons-material/AccountBalanceRounded';
+import AccountBalanceWalletRoundedIcon from '@mui/icons-material/AccountBalanceWalletRounded';
+import AddCircleRoundedIcon from '@mui/icons-material/AddCircleRounded';
+import LinkOffRoundedIcon from '@mui/icons-material/LinkOffRounded';
+import CloseRoundedIcon from '@mui/icons-material/CloseRounded';
+import LogoutRoundedIcon from '@mui/icons-material/LogoutRounded';
+import PersonRoundedIcon from '@mui/icons-material/PersonRounded';
+import SettingsRoundedIcon from '@mui/icons-material/SettingsRounded';
+import AttachMoneyRoundedIcon from '@mui/icons-material/AttachMoneyRounded';
+import CategoryRoundedIcon from '@mui/icons-material/CategoryRounded';
+import PlaceRoundedIcon from '@mui/icons-material/PlaceRounded';
+import DateRangeRoundedIcon from '@mui/icons-material/DateRangeRounded';
+import DeleteSweepRoundedIcon from '@mui/icons-material/DeleteSweepRounded';
+import MenuRoundedIcon from '@mui/icons-material/MenuRounded';
+import ArrowUpwardRoundedIcon from '@mui/icons-material/ArrowUpwardRounded';
+import ArrowDownwardRoundedIcon from '@mui/icons-material/ArrowDownwardRounded';
+import NotificationsRoundedIcon from '@mui/icons-material/NotificationsRounded';
+import AnalyticsRoundedIcon from '@mui/icons-material/AnalyticsRounded';
+import SwapHorizRoundedIcon from '@mui/icons-material/SwapHorizRounded';
+import CreditCardRoundedIcon from '@mui/icons-material/CreditCardRounded';
+
+// Charts
+import { 
+  LineChart, 
+  Line, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip as RechartsTooltip, 
+  ResponsiveContainer, 
+  BarChart, 
+  Bar, 
+  PieChart, 
+  Pie, 
+  Cell, 
+  Legend, 
+  AreaChart,
+  Area
+} from 'recharts';
+
+// Generate unique gradient for each account
 const getGradientByName = (name) => {
-  // Simple hash function to generate consistent colors
   const hash = name.split('').reduce((acc, char) => char.charCodeAt(0) + acc, 0);
-  
-  // Use hash to determine hue (0-360)
   const hue = hash % 360;
   
-  // Create gradient with two similar hues
-  return `linear-gradient(135deg, 
-    hsl(${hue}, 70%, 85%), 
-    hsl(${(hue + 30) % 360}, 60%, 75%)
-  )`;
+  return {
+    background: `linear-gradient(135deg, 
+      hsla(${hue}, 30%, 95%, 0.8), 
+      hsla(${(hue + 30) % 360}, 25%, 90%, 0.8)
+    )`,
+    border: `linear-gradient(135deg, 
+      hsla(${hue}, 60%, 75%, 1), 
+      hsla(${(hue + 40) % 360}, 70%, 65%, 1)
+    )`,
+    icon: `hsla(${hue}, 60%, 55%, 1)`
+  };
 };
+
+// Chart colors
+const COLORS = ['#6993FF', '#69E7FF', '#86D9B9', '#B5A8FF', '#FFC677', '#FF9C9C', '#A3A1FB', '#76EEF1'];
 
 const Dashboard = () => {
   const { logout } = useContext(AuthContext);
   const navigate = useNavigate();
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const isSmall = useMediaQuery(theme.breakpoints.down('sm'));
   
+  // Drawer state
+  const [drawerOpen, setDrawerOpen] = useState(!isMobile);
+  
+  // Core states
   const [linkToken, setLinkToken] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [accounts, setAccounts] = useState([]);
+  
+  // Menu states
   const [anchorEl, setAnchorEl] = useState(null);
+  
+  // Dialog states
   const [unlinkDialogOpen, setUnlinkDialogOpen] = useState(false);
   const [unlinkingAccount, setUnlinkingAccount] = useState(false);
   const [confirmAllUnlinkOpen, setConfirmAllUnlinkOpen] = useState(false);
-  
-  // New states for transactions
   const [selectedAccount, setSelectedAccount] = useState(null);
   const [transactionsDialogOpen, setTransactionsDialogOpen] = useState(false);
+  
+  // Transactions
   const [transactions, setTransactions] = useState([]);
   const [loadingTransactions, setLoadingTransactions] = useState(false);
   const [transactionError, setTransactionError] = useState(null);
   const [activeTab, setActiveTab] = useState(0);
 
-  // Colors for charts
-  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#82CA9D', '#FF6B6B', '#6A7FDB'];
-
+  // Handle menu
   const handleMenu = (event) => {
     setAnchorEl(event.currentTarget);
   };
@@ -108,6 +154,11 @@ const Dashboard = () => {
     handleClose();
   };
 
+  const toggleDrawer = () => {
+    setDrawerOpen(!drawerOpen);
+  };
+
+  // Load account data
   const loadAccountData = async () => {
     try {
       // Get link token for connecting new accounts
@@ -151,12 +202,14 @@ const Dashboard = () => {
     };
   }, []);
 
+  // Handle Plaid link
   const handleOpenPlaidLink = () => {
     if (linkToken) {
       navigate('/link-account');
     }
   };
 
+  // Unlink dialog functions
   const handleOpenUnlinkDialog = () => {
     setUnlinkDialogOpen(true);
   };
@@ -204,7 +257,7 @@ const Dashboard = () => {
     }
   };
 
-  // Format currency with commas and 2 decimal places
+  // Format currency
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
@@ -213,6 +266,7 @@ const Dashboard = () => {
     }).format(amount);
   };
 
+  // Account and transaction handling
   const handleAccountClick = async (account) => {
     // Only open transaction details for checking accounts
     if (account.subtype && account.subtype.toLowerCase() === 'checking') {
@@ -260,7 +314,7 @@ const Dashboard = () => {
     }
   };
 
-  // Process transaction data for charts and summary statistics
+  // Process transaction data for charts
   const processedTransactionData = useMemo(() => {
     if (!transactions.length) return { monthlyData: [], categoryData: [], locationData: [], summary: {} };
 
@@ -348,209 +402,649 @@ const Dashboard = () => {
     };
   }, [transactions]);
 
-  // Function to format date
+  // Format date
   const formatDate = (dateString) => {
     const options = { year: 'numeric', month: 'short', day: 'numeric' };
     return new Date(dateString).toLocaleDateString(undefined, options);
   };
 
+  // Calculate total balance
+  const totalBalance = useMemo(() => {
+    return accounts.reduce((sum, account) => sum + account.current_balance, 0);
+  }, [accounts]);
+
+  // Navigation items
+  const navItems = [
+    { text: 'Dashboard', icon: <DashboardRoundedIcon />, path: '/dashboard' },
+    { text: 'Accounts', icon: <AccountBalanceRoundedIcon />, path: '/accounts' },
+    { text: 'Transactions', icon: <SwapHorizRoundedIcon />, path: '/transactions' },
+    { text: 'Analytics', icon: <AnalyticsRoundedIcon />, path: '/analytics' },
+    { text: 'Cards', icon: <CreditCardRoundedIcon />, path: '/cards' },
+  ];
+
+  // Permanent drawer contents
+  const drawerContent = (
+    <>
+      <Box 
+        sx={{ 
+          display: 'flex', 
+          flexDirection: 'column', 
+          height: '100%',
+          width: drawerOpen ? 240 : 72,
+          transition: 'width 0.3s ease',
+          overflow: 'hidden'
+        }}
+      >
+        <Box 
+          sx={{ 
+            display: 'flex', 
+            alignItems: 'center',
+            justifyContent: drawerOpen ? 'space-between' : 'center',
+            py: 2.5,
+            px: drawerOpen ? 3 : 2
+          }}
+        >
+          {drawerOpen && (
+            <Typography 
+              variant="h6" 
+              sx={{
+                fontWeight: 600,
+                background: 'linear-gradient(135deg, #6993FF, #6667AB)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent'
+              }}
+            >
+              Finflow
+            </Typography>
+          )}
+          <IconButton 
+            onClick={toggleDrawer}
+            sx={{ 
+              color: 'primary.main',
+              backgroundColor: 'rgba(105, 147, 255, 0.08)',
+              borderRadius: 2,
+              p: 1,
+              '&:hover': {
+                backgroundColor: 'rgba(105, 147, 255, 0.16)'
+              }
+            }}
+          >
+            <MenuRoundedIcon fontSize="small" />
+          </IconButton>
+        </Box>
+
+        <Divider sx={{ opacity: 0.5 }} />
+        
+        <List sx={{ pt: 1, flex: 1 }}>
+          {navItems.map((item, index) => (
+            <ListItem 
+              key={index}
+              disablePadding
+              button
+              sx={{ 
+                mb: 0.5,
+                display: 'block',
+                mx: 1.5,
+                borderRadius: 2,
+                overflow: 'hidden',
+                px: drawerOpen ? 2 : 1,
+                py: 1,
+                '&:hover': {
+                  backgroundColor: 'rgba(105, 147, 255, 0.08)',
+                },
+                ...(item.text === 'Dashboard' && {
+                  backgroundImage: 'linear-gradient(90deg, rgba(105, 147, 255, 0.16), rgba(105, 147, 255, 0.08) 70%)',
+                  '&:hover': {
+                    backgroundImage: 'linear-gradient(90deg, rgba(105, 147, 255, 0.24), rgba(105, 147, 255, 0.12) 70%)',
+                  }
+                })
+              }}
+              component="a"
+              href={item.path}
+            >
+              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                <Box sx={{ 
+                  minWidth: 40, 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  justifyContent: 'center',
+                  color: item.text === 'Dashboard' ? 'primary.main' : 'text.secondary'
+                }}>
+                  {item.icon}
+                </Box>
+                {drawerOpen && (
+                  <Fade in={drawerOpen}>
+                    <Typography 
+                      variant="body1" 
+                      sx={{ 
+                        ml: 1.5, 
+                        fontWeight: item.text === 'Dashboard' ? 600 : 500,
+                        color: item.text === 'Dashboard' ? 'primary.main' : 'text.secondary'
+                      }}
+                    >
+                      {item.text}
+                    </Typography>
+                  </Fade>
+                )}
+              </Box>
+            </ListItem>
+          ))}
+        </List>
+        
+        <Divider sx={{ opacity: 0.5 }} />
+        
+        <Box sx={{ p: 2 }}>
+          <Button
+            variant="contained"
+            fullWidth
+            startIcon={drawerOpen ? <LogoutRoundedIcon /> : null}
+            onClick={handleLogout}
+            sx={{
+              justifyContent: drawerOpen ? 'flex-start' : 'center',
+              py: 1,
+              px: drawerOpen ? 2.5 : 0,
+              borderRadius: 2,
+              textTransform: 'none',
+              fontWeight: 500,
+              boxShadow: 'none',
+              background: 'linear-gradient(135deg, rgba(105, 147, 255, 0.12), rgba(105, 147, 255, 0.06))',
+              color: 'text.secondary',
+              '&:hover': {
+                boxShadow: 'none',
+                background: 'linear-gradient(135deg, rgba(105, 147, 255, 0.24), rgba(105, 147, 255, 0.12))',
+              }
+            }}
+          >
+            {drawerOpen ? 'Logout' : <LogoutRoundedIcon fontSize="small" />}
+          </Button>
+        </Box>
+      </Box>
+    </>
+  );
+
   return (
-    <Box className="fade-in" sx={{ minHeight: '100vh' }}>
-      <AppBar position="static" elevation={0} className="app-header">
-        <Toolbar>
-          <Box sx={{ display: 'flex', alignItems: 'center' }}>
-            <DashboardIcon sx={{ mr: 1.5 }} />
-            <Typography variant="h6" component="div" sx={{ fontWeight: 500 }}>
-              Finance Tracker
+    <Box
+      className="dashboard-container"
+      sx={{
+        display: 'flex',
+        minHeight: '100vh',
+        backgroundColor: '#f8fafc',
+        backgroundImage: `
+          radial-gradient(at 40% 20%, rgba(105, 147, 255, 0.04) 0px, transparent 50%),
+          radial-gradient(at 80% 90%, rgba(105, 231, 255, 0.04) 0px, transparent 50%)
+        `,
+        backgroundAttachment: 'fixed'
+      }}
+    >
+      {/* Left Navigation Drawer */}
+      <Drawer
+        variant={isMobile ? "temporary" : "permanent"}
+        open={drawerOpen}
+        onClose={toggleDrawer}
+        sx={{
+          width: drawerOpen ? 240 : 72,
+          flexShrink: 0,
+          "& .MuiDrawer-paper": {
+            width: drawerOpen ? 240 : 72,
+            boxSizing: "border-box",
+            boxShadow: 'none',
+            border: 'none',
+            backgroundColor: 'white',
+            transition: 'width 0.3s ease',
+            overflowX: 'hidden'
+          }
+        }}
+      >
+        {drawerContent}
+      </Drawer>
+
+      {/* Main Content */}
+      <Box
+        component="main"
+        sx={{
+          flexGrow: 1,
+          p: 3,
+          transition: 'margin 0.3s ease',
+          ml: isMobile ? 0 : (drawerOpen ? 0 : 0),
+          width: isMobile ? '100%' : `calc(100% - ${drawerOpen ? 240 : 72}px)`
+        }}
+      >
+        {/* Header */}
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            mb: 3,
+            px: 1
+          }}
+        >
+          <Box>
+            <Typography
+              variant="h5"
+              sx={{
+                fontWeight: 600,
+                color: 'text.primary',
+                mb: 0.5
+              }}
+            >
+              Financial Dashboard
+            </Typography>
+            <Typography
+              variant="body2"
+              color="text.secondary"
+            >
+              Welcome back! Here's your financial overview
             </Typography>
           </Box>
-          <Box sx={{ flexGrow: 1 }} />
-          <IconButton
-            size="large"
-            aria-label="account of current user"
-            aria-controls="menu-appbar"
-            aria-haspopup="true"
-            onClick={handleMenu}
-            color="inherit"
-          >
-            <AccountCircleIcon />
-          </IconButton>
-          <Menu
-            id="menu-appbar"
-            anchorEl={anchorEl}
-            anchorOrigin={{
-              vertical: 'top',
-              horizontal: 'right',
-            }}
-            keepMounted
-            transformOrigin={{
-              vertical: 'top',
-              horizontal: 'right',
-            }}
-            open={Boolean(anchorEl)}
-            onClose={handleClose}
-          >
-            <MenuItem onClick={handleClose}>Profile</MenuItem>
-            <MenuItem onClick={handleLogout}>Logout</MenuItem>
-          </Menu>
-        </Toolbar>
-      </AppBar>
-      
-      <Container maxWidth="lg" sx={{ mt: 4, pb: 6 }}>
-        <Box sx={{ 
-          display: 'flex', 
-          justifyContent: 'space-between', 
-          alignItems: 'center', 
-          mb: 4,
-          flexDirection: isMobile ? 'column' : 'row',
-          gap: isMobile ? 2 : 0
-        }}>
-          <Typography 
-            variant="h4" 
-            component="h1" 
-            sx={{ 
-              fontWeight: 500,
-              background: 'linear-gradient(135deg, #4CAF50, #2E7D32)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent'
+
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1.5
             }}
           >
-            Dashboard
-          </Typography>
-          {accounts.length > 0 && (
-            <Button 
-              variant="outlined" 
-              color="success"
-              startIcon={<LinkOffIcon />}
-              onClick={handleOpenUnlinkDialog}
-              className="modern-button"
+            <IconButton
               sx={{
-                borderRadius: 6,
-                boxShadow: 'none',
-                textTransform: 'none',
-                fontWeight: 500,
-                borderWidth: 1.5,
+                backgroundColor: 'rgba(105, 147, 255, 0.08)',
+                borderRadius: 2,
+                p: 1,
                 '&:hover': {
-                  borderWidth: 1.5,
-                  boxShadow: '0 4px 12px rgba(46, 125, 50, 0.15)'
+                  backgroundColor: 'rgba(105, 147, 255, 0.16)'
                 }
               }}
             >
-              Manage Accounts
-            </Button>
-          )}
+              <NotificationsRoundedIcon
+                sx={{ color: 'text.secondary' }}
+                fontSize="small"
+              />
+            </IconButton>
+
+            <Avatar
+              onClick={handleMenu}
+              sx={{
+                width: 40,
+                height: 40,
+                cursor: 'pointer',
+                backgroundColor: 'rgba(105, 147, 255, 0.12)',
+                color: 'primary.main',
+                '&:hover': {
+                  backgroundColor: 'rgba(105, 147, 255, 0.2)'
+                }
+              }}
+            >
+              <PersonRoundedIcon fontSize="small" />
+            </Avatar>
+            <Menu
+              id="menu-appbar"
+              anchorEl={anchorEl}
+              keepMounted
+              open={Boolean(anchorEl)}
+              onClose={handleClose}
+              transformOrigin={{
+                vertical: 'top',
+                horizontal: 'right',
+              }}
+              sx={{
+                mt: 1.5,
+                '& .MuiPaper-root': {
+                  borderRadius: 2,
+                  boxShadow: '0 8px 24px rgba(0, 0, 0, 0.08)',
+                  minWidth: 180
+                }
+              }}
+            >
+              <MenuItem onClick={handleClose} sx={{ py: 1.5 }}>
+                <ListItemIcon>
+                  <PersonRoundedIcon fontSize="small" />
+                </ListItemIcon>
+                <Typography variant="body2">Profile</Typography>
+              </MenuItem>
+              <MenuItem onClick={handleClose} sx={{ py: 1.5 }}>
+                <ListItemIcon>
+                  <SettingsRoundedIcon fontSize="small" />
+                </ListItemIcon>
+                <Typography variant="body2">Settings</Typography>
+              </MenuItem>
+              <Divider />
+              <MenuItem onClick={handleLogout} sx={{ py: 1.5 }}>
+                <ListItemIcon>
+                  <LogoutRoundedIcon fontSize="small" color="error" />
+                </ListItemIcon>
+                <Typography variant="body2" color="error">Logout</Typography>
+              </MenuItem>
+            </Menu>
+          </Box>
         </Box>
-        
+
+        {/* Main Dashboard Content */}
         {loading ? (
-          <Box sx={{ display: 'flex', justifyContent: 'center', my: 8 }}>
-            <CircularProgress sx={{ color: '#4CAF50' }} />
+          <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '60vh' }}>
+            <CircularProgress sx={{ color: 'primary.main' }} />
           </Box>
         ) : error ? (
-          <Typography color="error" sx={{ mt: 2 }}>
-            {error}
-          </Typography>
+          <Paper 
+            elevation={0}
+            sx={{ 
+              p: 3, 
+              borderRadius: 3,
+              textAlign: 'center',
+              backgroundColor: 'rgba(255, 82, 82, 0.05)',
+              border: '1px solid rgba(255, 82, 82, 0.1)'
+            }}
+          >
+            <Typography color="error" variant="h6">
+              {error}
+            </Typography>
+          </Paper>
         ) : (
-          <>
-            {accounts.length > 0 ? (
-              <Box sx={{ mt: 4 }}>
-                <Typography 
-                  variant="h5" 
-                  gutterBottom 
-                  sx={{ 
-                    mb: 3, 
-                    fontWeight: 500,
-                    color: 'var(--text-primary)'
+          <Box sx={{ pb: 6 }}>
+            {/* Balance Overview Card */}
+            <Box sx={{ mb: 4 }}>
+              <Grow in={true} timeout={800}>
+                <Paper
+                  elevation={0}
+                  sx={{
+                    borderRadius: 4,
+                    overflow: 'hidden',
+                    border: '1px solid rgba(105, 147, 255, 0.1)',
+                    background: 'linear-gradient(120deg, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.8))',
+                    backdropFilter: 'blur(20px)',
+                    position: 'relative',
+                    '&::before': {
+                      content: '""',
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      height: '4px',
+                      background: 'linear-gradient(90deg, #6993FF, #69E7FF)'
+                    }
                   }}
                 >
-                  Your Accounts
-                </Typography>
-                
-                <Grid container spacing={3}>
-                  {accounts.map((account, index) => (
-                    <Grid item xs={12} md={6} key={account.id}>
-                      <Fade in={true} style={{ transitionDelay: `${index * 100}ms` }}>
-                        <Card 
-                          className="modern-card account-card" 
-                          sx={{ 
-                            overflow: 'hidden',
-                            height: '100%',
-                            position: 'relative',
-                            cursor: account.subtype && account.subtype.toLowerCase() === 'checking' ? 'pointer' : 'default',
-                            '&::before': {
-                              content: '""',
-                              position: 'absolute',
-                              top: 0,
-                              left: 0,
-                              right: 0,
-                              height: '4px',
-                              background: getGradientByName(account.institution_name)
-                            },
-                            '&:hover': account.subtype && account.subtype.toLowerCase() === 'checking' ? {
-                              boxShadow: '0 8px 24px rgba(0, 0, 0, 0.12)'
-                            } : {}
-                          }}
-                          onClick={() => handleAccountClick(account)}
-                        >
-                          <CardContent sx={{ height: '100%' }}>
-                            <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                              <Avatar 
-                                sx={{ 
-                                  mr: 2, 
-                                  background: getGradientByName(account.institution_name) 
+                  <Box sx={{ p: { xs: 2, md: 3 } }}>
+                    <Grid container spacing={3}>
+                      <Grid item xs={12} md={4}>
+                        <Box sx={{ p: 2 }}>
+                          <Typography variant="body2" color="text.secondary" gutterBottom>
+                            Total Balance
+                          </Typography>
+                          <Typography 
+                            variant="h4"
+                            sx={{ 
+                              fontWeight: 600,
+                              mb: 1,
+                              color: totalBalance >= 0 ? '#4E8CB8' : '#B84E6C',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 1
+                            }}
+                          >
+                            {formatCurrency(totalBalance)}
+                            <Chip
+                              size="small"
+                              icon={totalBalance >= 0 ? <ArrowUpwardRoundedIcon fontSize="small" /> : <ArrowDownwardRoundedIcon fontSize="small" />}
+                              label={totalBalance >= 0 ? "+2.4%" : "-1.2%"}
+                              sx={{
+                                backgroundColor: totalBalance >= 0 ? 'rgba(78, 140, 184, 0.1)' : 'rgba(184, 78, 108, 0.1)',
+                                color: totalBalance >= 0 ? '#4E8CB8' : '#B84E6C',
+                                fontWeight: 600,
+                                fontSize: '0.75rem',
+                                height: 24,
+                                borderRadius: 1.5
+                              }}
+                            />
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            From {accounts.length} linked accounts
+                          </Typography>
+                        </Box>
+                      </Grid>
+                      
+                      <Grid item xs={12} md={8} sx={{ display: 'flex', alignItems: 'center' }}>
+                        <Box sx={{ width: '100%', height: 140 }}>
+                          <ResponsiveContainer width="100%" height="100%">
+                            <AreaChart
+                              data={processedTransactionData.monthlyData.length > 0 
+                                ? processedTransactionData.monthlyData 
+                                : [
+                                    { name: '1/2024', inflow: 3500, outflow: 2800 },
+                                    { name: '2/2024', inflow: 3800, outflow: 3000 },
+                                    { name: '3/2024', inflow: 4200, outflow: 3200 },
+                                    { name: '4/2024', inflow: 3900, outflow: 3100 },
+                                    { name: '5/2024', inflow: 4500, outflow: 3300 },
+                                  ]}
+                              margin={{ top: 5, right: 20, left: 20, bottom: 5 }}
+                            >
+                              <defs>
+                                <linearGradient id="colorInflow" x1="0" y1="0" x2="0" y2="1">
+                                  <stop offset="5%" stopColor="#6993FF" stopOpacity={0.2} />
+                                  <stop offset="95%" stopColor="#6993FF" stopOpacity={0} />
+                                </linearGradient>
+                                <linearGradient id="colorOutflow" x1="0" y1="0" x2="0" y2="1">
+                                  <stop offset="5%" stopColor="#69E7FF" stopOpacity={0.2} />
+                                  <stop offset="95%" stopColor="#69E7FF" stopOpacity={0} />
+                                </linearGradient>
+                              </defs>
+                              <XAxis 
+                                dataKey="name" 
+                                tick={{ fontSize: 12 }}
+                                tickLine={false}
+                                axisLine={false}
+                                tickMargin={8}
+                              />
+                              <YAxis 
+                                hide 
+                                domain={['dataMin - 500', 'dataMax + 500']} 
+                              />
+                              <RechartsTooltip 
+                                formatter={(value) => formatCurrency(value)}
+                                labelFormatter={(label) => `Month: ${label}`}
+                                contentStyle={{ 
+                                  borderRadius: 12,
+                                  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
+                                  border: 'none'
                                 }}
-                              >
-                                <AccountBalanceIcon />
-                              </Avatar>
-                              <Box>
-                                <Typography variant="h6" sx={{ fontWeight: 500 }}>
-                                  {account.name}
-                                </Typography>
-                                <Typography variant="body2" color="text.secondary">
-                                  {account.institution_name}
+                              />
+                              <Area 
+                                type="monotone" 
+                                dataKey="inflow" 
+                                name="Income"
+                                stackId="1"
+                                stroke="#6993FF" 
+                                strokeWidth={2}
+                                fillOpacity={1}
+                                fill="url(#colorInflow)" 
+                              />
+                              <Area 
+                                type="monotone" 
+                                dataKey="outflow" 
+                                name="Spending"
+                                stackId="2"
+                                stroke="#69E7FF" 
+                                strokeWidth={2}
+                                fillOpacity={1}
+                                fill="url(#colorOutflow)" 
+                              />
+                            </AreaChart>
+                          </ResponsiveContainer>
+                        </Box>
+                      </Grid>
+                    </Grid>
+                  </Box>
+                </Paper>
+              </Grow>
+            </Box>
+
+            {accounts.length > 0 ? (
+              <Box>
+                {/* Accounts Section */}
+                <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Typography
+                    variant="h6"
+                    sx={{
+                      fontWeight: 600,
+                      color: 'text.primary'
+                    }}
+                  >
+                    Your Accounts
+                  </Typography>
+                  <Button
+                    variant="outlined"
+                    color="primary"
+                    size="small"
+                    startIcon={<LinkOffRoundedIcon />}
+                    onClick={handleOpenUnlinkDialog}
+                    sx={{
+                      borderRadius: 6,
+                      textTransform: 'none',
+                      py: 0.7,
+                      px: 2,
+                      borderColor: 'rgba(105, 147, 255, 0.3)',
+                      color: 'primary.main',
+                      '&:hover': {
+                        borderColor: 'primary.main',
+                        backgroundColor: 'rgba(105, 147, 255, 0.04)'
+                      }
+                    }}
+                  >
+                    Manage
+                  </Button>
+                </Box>
+                
+                <Grid container spacing={2.5}>
+                  {accounts.map((account, index) => {
+                    const gradientColors = getGradientByName(account.institution_name);
+                    return (
+                      <Grid item xs={12} sm={6} md={4} key={account.id}>
+                        <Grow in={true} style={{ transformOrigin: '0 0 0' }} timeout={(index + 1) * 200}>
+                          <Card
+                            elevation={0}
+                            onClick={() => handleAccountClick(account)}
+                            sx={{
+                              borderRadius: 4,
+                              border: '1px solid rgba(105, 147, 255, 0.1)',
+                              overflow: 'hidden',
+                              cursor: account.subtype && account.subtype.toLowerCase() === 'checking' ? 'pointer' : 'default',
+                              background: gradientColors.background,
+                              transition: 'all 0.3s ease',
+                              position: 'relative',
+                              '&::before': {
+                                content: '""',
+                                position: 'absolute',
+                                top: 0,
+                                left: 0,
+                                right: 0,
+                                height: '4px',
+                                background: gradientColors.border
+                              },
+                              '&:hover': account.subtype && account.subtype.toLowerCase() === 'checking' ? {
+                                transform: 'translateY(-4px)',
+                                boxShadow: '0 8px 20px rgba(105, 147, 255, 0.1)',
+                                '&::before': {
+                                  height: '6px'
+                                }
+                              } : {}
+                            }}
+                          >
+                            <CardContent sx={{ p: 3 }}>
+                              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2.5 }}>
+                                <Avatar
+                                  sx={{
+                                    mr: 2,
+                                    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+                                    color: gradientColors.icon,
+                                    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.05)'
+                                  }}
+                                >
+                                  {account.type.toLowerCase() === 'depository' ? (
+                                    <AccountBalanceWalletRoundedIcon />
+                                  ) : (
+                                    <AccountBalanceRoundedIcon />
+                                  )}
+                                </Avatar>
+                                <Box>
+                                  <Typography 
+                                    variant="subtitle1" 
+                                    sx={{ 
+                                      fontWeight: 600,
+                                      color: 'text.primary',
+                                      display: '-webkit-box',
+                                      WebkitLineClamp: 1,
+                                      WebkitBoxOrient: 'vertical',
+                                      overflow: 'hidden'
+                                    }}
+                                  >
+                                    {account.name}
+                                  </Typography>
+                                  <Typography
+                                    variant="body2"
+                                    color="text.secondary"
+                                    sx={{
+                                      display: '-webkit-box',
+                                      WebkitLineClamp: 1,
+                                      WebkitBoxOrient: 'vertical',
+                                      overflow: 'hidden'
+                                    }}
+                                  >
+                                    {account.institution_name}
+                                  </Typography>
+                                </Box>
+                              </Box>
+
+                              <Divider sx={{ opacity: 0.6, my: 1.5 }} />
+
+                              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 2 }}>
+                                <Chip
+                                  label={`${account.type.charAt(0).toUpperCase() + account.type.slice(1)} ${account.subtype ? `• ${account.subtype.charAt(0).toUpperCase() + account.subtype.slice(1)}` : ''}`}
+                                  size="small"
+                                  sx={{
+                                    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+                                    color: 'text.secondary',
+                                    fontWeight: 500,
+                                    borderRadius: 1.5,
+                                    height: 24
+                                  }}
+                                />
+                                <Typography
+                                  variant="h6"
+                                  sx={{
+                                    fontWeight: 600,
+                                    color: account.current_balance >= 0 ? '#4E8CB8' : '#B84E6C',
+                                    fontFamily: '"Roboto Mono", monospace'
+                                  }}
+                                >
+                                  {formatCurrency(account.current_balance)}
                                 </Typography>
                               </Box>
-                            </Box>
-                            
-                            <Divider sx={{ my: 1.5 }} />
-                            
-                            <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 2 }}>
-                              <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
-                                {account.type.charAt(0).toUpperCase() + account.type.slice(1)} 
-                                {account.subtype ? ` • ${account.subtype.charAt(0).toUpperCase() + account.subtype.slice(1)}` : ''}
-                              </Typography>
-                              <Typography 
-                                variant="h6" 
-                                className="currency"
-                                sx={{ 
-                                  fontWeight: 500,
-                                  color: account.current_balance >= 0 ? '#2e7d32' : '#d32f2f'
-                                }}
-                              >
-                                {formatCurrency(account.current_balance)}
-                              </Typography>
-                            </Box>
-                          </CardContent>
-                        </Card>
-                      </Fade>
-                    </Grid>
-                  ))}
+                            </CardContent>
+                          </Card>
+                        </Grow>
+                      </Grid>
+                    );
+                  })}
                 </Grid>
-                
-                <Box sx={{ mt: 5, textAlign: 'center' }}>
-                  <Button 
-                    variant="contained" 
-                    color="success"
+
+                {/* Add Account Button */}
+                <Box sx={{ mt: 4, textAlign: 'center' }}>
+                  <Button
+                    variant="contained"
                     onClick={handleOpenPlaidLink}
                     disabled={!linkToken}
-                    startIcon={<AddCircleIcon />}
-                    className="modern-button"
-                    sx={{ 
-                      px: 4,
+                    startIcon={<AddCircleRoundedIcon />}
+                    sx={{
+                      borderRadius: 8,
                       py: 1.5,
-                      background: 'linear-gradient(135deg, #4CAF50, #2E7D32)',
+                      px: 4,
+                      textTransform: 'none',
+                      fontWeight: 500,
+                      background: 'linear-gradient(120deg, #6993FF, #69E7FF)',
+                      boxShadow: '0 8px 20px rgba(105, 147, 255, 0.2)',
+                      transition: 'all 0.3s ease',
                       '&:hover': {
-                        background: 'linear-gradient(135deg, #43A047, #2E7D32)',
-                        boxShadow: '0 8px 16px rgba(46, 125, 50, 0.25)'
+                        boxShadow: '0 12px 28px rgba(105, 147, 255, 0.3)',
+                        transform: 'translateY(-2px)'
                       }
                     }}
                   >
@@ -559,652 +1053,1086 @@ const Dashboard = () => {
                 </Box>
               </Box>
             ) : (
-              <Box 
-                sx={{ 
-                  mt: 6, 
-                  textAlign: 'center',
-                  p: 5,
-                  background: 'rgba(255, 255, 255, 0.8)',
-                  borderRadius: 4,
-                  boxShadow: '0 4px 20px rgba(0, 0, 0, 0.03)'
-                }}
-              >
-                <Typography variant="h5" gutterBottom sx={{ mb: 2, fontWeight: 500 }}>
-                  Get Started with Finance Tracking
-                </Typography>
-                <Typography variant="body1" gutterBottom sx={{ mb: 4, maxWidth: '600px', mx: 'auto' }}>
-                  Connect your bank account to start tracking your finances and get insights into your spending habits.
-                </Typography>
-                <Button 
-                  variant="contained" 
-                  color="success"
-                  onClick={handleOpenPlaidLink}
-                  disabled={!linkToken}
-                  startIcon={<AddCircleIcon />}
-                  className="modern-button"
-                  sx={{ 
-                    px: 4,
-                    py: 1.5,
-                    background: 'linear-gradient(135deg, #4CAF50, #2E7D32)',
-                    '&:hover': {
-                      background: 'linear-gradient(135deg, #43A047, #2E7D32)',
-                      boxShadow: '0 8px 16px rgba(46, 125, 50, 0.25)'
-                    }
+              <Grow in={true} timeout={800}>
+                <Paper
+                  elevation={0}
+                  sx={{
+                    borderRadius: 4,
+                    overflow: 'hidden',
+                    p: { xs: 3, md: 5 },
+                    textAlign: 'center',
+                    background: 'linear-gradient(120deg, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.8))',
+                    backdropFilter: 'blur(20px)',
+                    border: '1px solid rgba(105, 147, 255, 0.1)',
                   }}
                 >
-                  Connect Bank Account
-                </Button>
-              </Box>
-            )}
-          </>
-        )}
-        
-        {/* Unlink Accounts Dialog */}
-        <Dialog
-          open={unlinkDialogOpen}
-          onClose={handleCloseUnlinkDialog}
-          aria-labelledby="unlink-dialog-title"
-          fullWidth
-          maxWidth="sm"
-          PaperProps={{
-            sx: {
-              borderRadius: 3,
-              boxShadow: '0 10px 40px rgba(0, 0, 0, 0.1)'
-            }
-          }}
-        >
-          <DialogTitle 
-            id="unlink-dialog-title"
-            sx={{ 
-              pb: 1,
-              pt: 3,
-              fontWeight: 500,
-              textAlign: 'center'
-            }}
-          >
-            Manage Linked Accounts
-          </DialogTitle>
-          <DialogContent>
-            {unlinkingAccount ? (
-              <Box sx={{ display: 'flex', justifyContent: 'center', my: 4 }}>
-                <CircularProgress sx={{ color: '#4CAF50' }} />
-              </Box>
-            ) : (
-              <>
-                <List sx={{ py: 2 }}>
-                  {accounts.map((account) => (
-                    <ListItem 
-                      key={account.id} 
-                      divider 
-                      sx={{ 
-                        py: 2,
-                        transition: 'all 0.2s',
+                  <Box sx={{ maxWidth: 480, mx: 'auto', py: 2 }}>
+                    <Avatar
+                      sx={{
+                        width: 80,
+                        height: 80,
+                        mx: 'auto',
+                        mb: 3,
+                        background: 'linear-gradient(120deg, rgba(105, 147, 255, 0.12), rgba(105, 231, 255, 0.12))',
+                        color: '#6993FF',
+                      }}
+                    >
+                      <AccountBalanceRoundedIcon fontSize="large" />
+                    </Avatar>
+                    <Typography
+                      variant="h5"
+                      gutterBottom
+                      sx={{ fontWeight: 600, mb: 2 }}
+                    >
+                      Get Started with Finance Tracking
+                    </Typography>
+                    <Typography
+                      variant="body1"
+                      sx={{ color: 'text.secondary', mb: 4 }}
+                    >
+                      Connect your bank accounts to start tracking your finances and get insights into your spending habits.
+                    </Typography>
+                    <Button
+                      variant="contained"
+                      size="large"
+                      onClick={handleOpenPlaidLink}
+                      disabled={!linkToken}
+                      startIcon={<AddCircleRoundedIcon />}
+                      sx={{
+                        borderRadius: 8,
+                        py: 1.5,
+                        px: 4,
+                        textTransform: 'none',
+                        fontWeight: 500,
+                        background: 'linear-gradient(120deg, #6993FF, #69E7FF)',
+                        boxShadow: '0 8px 20px rgba(105, 147, 255, 0.2)',
+                        transition: 'all 0.3s ease',
                         '&:hover': {
-                          backgroundColor: 'rgba(0, 0, 0, 0.02)'
+                          boxShadow: '0 12px 28px rgba(105, 147, 255, 0.3)',
+                          transform: 'translateY(-2px)'
                         }
                       }}
                     >
-                      <ListItemText 
+                      Connect Bank Account
+                    </Button>
+                  </Box>
+                </Paper>
+              </Grow>
+            )}
+          </Box>
+        )}
+      </Box>
+
+      {/* Manage Accounts Dialog */}
+      <Dialog
+        open={unlinkDialogOpen}
+        onClose={handleCloseUnlinkDialog}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 4,
+            boxShadow: '0 12px 32px rgba(0, 0, 0, 0.1)',
+            overflow: 'hidden'
+          }
+        }}
+      >
+        <DialogTitle
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            p: 3,
+            pb: 2
+          }}
+        >
+          <Typography variant="h6" fontWeight={600}>
+            Manage Linked Accounts
+          </Typography>
+          <IconButton
+            onClick={handleCloseUnlinkDialog}
+            sx={{
+              color: 'text.secondary',
+              bgcolor: 'rgba(0, 0, 0, 0.04)',
+              '&:hover': {
+                bgcolor: 'rgba(0, 0, 0, 0.08)'
+              }
+            }}
+          >
+            <CloseRoundedIcon fontSize="small" />
+          </IconButton>
+        </DialogTitle>
+
+        <DialogContent sx={{ p: 0 }}>
+          {unlinkingAccount ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', my: 6, py: 4 }}>
+              <CircularProgress sx={{ color: 'primary.main' }} />
+            </Box>
+          ) : (
+            <>
+              <List sx={{ py: 0 }}>
+                {accounts.map((account) => {
+                  const gradientColors = getGradientByName(account.institution_name);
+                  return (
+                    <ListItem
+                      key={account.id}
+                      divider
+                      sx={{
+                        py: 2,
+                        px: 3,
+                        transition: 'all 0.2s ease',
+                        '&:hover': {
+                          backgroundColor: 'rgba(105, 147, 255, 0.04)'
+                        }
+                      }}
+                    >
+                      <ListItemIcon sx={{ minWidth: 56 }}>
+                        <Avatar
+                          sx={{
+                            backgroundColor: 'rgba(255, 255, 255, 0.8)',
+                            color: gradientColors.icon,
+                            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.05)'
+                          }}
+                        >
+                          {account.type.toLowerCase() === 'depository' ? (
+                            <AccountBalanceWalletRoundedIcon fontSize="small" />
+                          ) : (
+                            <AccountBalanceRoundedIcon fontSize="small" />
+                          )}
+                        </Avatar>
+                      </ListItemIcon>
+                      <ListItemText
                         primary={
-                          <Typography variant="body1" sx={{ fontWeight: 500 }}>
+                          <Typography variant="body1" fontWeight={500} sx={{ mb: 0.5 }}>
                             {account.name}
                           </Typography>
                         }
                         secondary={
-                          <Box component="span" sx={{ display: 'flex', flexDirection: 'column', mt: 0.5 }}>
+                          <Box component="span" sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                             <Typography variant="body2" color="text.secondary">
                               {account.institution_name}
                             </Typography>
-                            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                              {account.type.charAt(0).toUpperCase() + account.type.slice(1)} • {formatCurrency(account.current_balance)}
-                            </Typography>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
+                              <Chip
+                                label={account.type.charAt(0).toUpperCase() + account.type.slice(1)}
+                                size="small"
+                                sx={{
+                                  height: 20,
+                                  fontSize: '0.7rem',
+                                  fontWeight: 500,
+                                  bgcolor: 'rgba(105, 147, 255, 0.1)',
+                                  color: 'primary.main'
+                                }}
+                              />
+                              <Typography
+                                variant="body2"
+                                sx={{
+                                  fontWeight: 500,
+                                  color: account.current_balance >= 0 ? '#4E8CB8' : '#B84E6C',
+                                  fontFamily: '"Roboto Mono", monospace'
+                                }}
+                              >
+                                {formatCurrency(account.current_balance)}
+                              </Typography>
+                            </Box>
                           </Box>
                         }
                       />
-                      <ListItemSecondaryAction>
-                        <Button 
-                          variant="outlined" 
-                          color="error" 
-                          size="small"
-                          onClick={() => handleUnlinkAccount(account.id)}
-                          startIcon={<LinkOffIcon />}
-                          sx={{
-                            borderRadius: 6,
-                            textTransform: 'none',
-                            '&:hover': {
-                              backgroundColor: 'rgba(211, 47, 47, 0.04)'
-                            }
-                          }}
-                        >
-                          Unlink
-                        </Button>
-                      </ListItemSecondaryAction>
-                    </ListItem>
-                  ))}
-                </List>
-                {accounts.length > 0 && (
-                  <Box sx={{ mt: 4, display: 'flex', justifyContent: 'center' }}>
-                    <Tooltip title="Remove all linked bank accounts">
                       <Button
-                        variant="contained"
+                        variant="outlined"
                         color="error"
-                        startIcon={<DeleteSweepIcon />}
-                        onClick={handleConfirmAllUnlink}
-                        className="modern-button"
-                        sx={{ 
+                        size="small"
+                        onClick={() => handleUnlinkAccount(account.id)}
+                        startIcon={<LinkOffRoundedIcon />}
+                        sx={{
+                          borderRadius: 6,
                           textTransform: 'none',
-                          fontWeight: 500,
-                          py: 1
+                          borderColor: 'rgba(211, 47, 47, 0.3)',
+                          '&:hover': {
+                            backgroundColor: 'rgba(211, 47, 47, 0.04)',
+                            borderColor: 'error.main'
+                          }
                         }}
                       >
-                        Remove All Links
+                        Unlink
                       </Button>
-                    </Tooltip>
-                  </Box>
-                )}
-              </>
-            )}
-          </DialogContent>
-          <DialogActions sx={{ pb: 3, px: 3 }}>
-            <Button 
-              onClick={handleCloseUnlinkDialog} 
-              color="inherit"
-              sx={{ 
-                textTransform: 'none',
-                fontWeight: 500
-              }}
-            >
-              Close
-            </Button>
-          </DialogActions>
-        </Dialog>
+                    </ListItem>
+                  );
+                })}
+              </List>
 
-        {/* Confirm Remove All Dialog */}
-        <Dialog
-          open={confirmAllUnlinkOpen}
-          onClose={handleCloseConfirmAllUnlink}
-          aria-labelledby="confirm-dialog-title"
-          PaperProps={{
-            sx: {
-              borderRadius: 3,
-              boxShadow: '0 10px 40px rgba(0, 0, 0, 0.1)'
-            }
-          }}
-        >
-          <DialogTitle 
-            id="confirm-dialog-title"
-            sx={{ 
-              pt: 3,
-              fontWeight: 500,
-              textAlign: 'center'
-            }}
-          >
-            Remove All Linked Accounts?
-          </DialogTitle>
-          <DialogContent sx={{ pb: 2 }}>
-            <Typography sx={{ textAlign: 'center' }}>
-              Are you sure you want to remove all linked bank accounts? This action cannot be undone.
-            </Typography>
-          </DialogContent>
-          <DialogActions sx={{ px: 3, pb: 3, justifyContent: 'center', gap: 2 }}>
-            <Button 
-              onClick={handleCloseConfirmAllUnlink} 
-              variant="outlined"
-              sx={{ 
-                minWidth: '120px',
-                textTransform: 'none',
-                borderRadius: 6,
-                fontWeight: 500
-              }}
-            >
-              Cancel
-            </Button>
-            <Button 
-              onClick={handleUnlinkAllAccounts} 
-              color="error" 
-              variant="contained"
-              sx={{ 
-                minWidth: '120px',
-                textTransform: 'none',
-                borderRadius: 6,
-                fontWeight: 500
-              }}
-            >
-              Remove All
-            </Button>
-          </DialogActions>
-        </Dialog>
-
-        {/* Transaction Details Dialog */}
-        <Dialog
-          open={transactionsDialogOpen}
-          onClose={handleCloseTransactionsDialog}
-          aria-labelledby="transactions-dialog-title"
-          fullWidth
-          maxWidth="lg"
-          PaperProps={{
-            sx: {
-              borderRadius: 3,
-              boxShadow: '0 10px 40px rgba(0, 0, 0, 0.1)',
-              height: '90vh'
-            }
-          }}
-        >
-          <DialogTitle 
-            id="transactions-dialog-title"
-            sx={{ 
-              pb: 1,
-              pt: 3,
-              fontWeight: 500,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between'
-            }}
-          >
-            <Box sx={{ display: 'flex', alignItems: 'center' }}>
-              <AttachMoneyIcon sx={{ mr: 1.5, color: '#4CAF50' }} />
-              <Typography 
-                variant="h6" 
-                component="span"
-              >
-                {selectedAccount?.name} Transactions
-              </Typography>
-            </Box>
-            <Typography 
-              variant="h6" 
-              component="span"
-              sx={{ 
-                fontWeight: 600,
-                color: selectedAccount?.current_balance >= 0 ? '#2e7d32' : '#d32f2f'
-              }}
-            >
-              {selectedAccount && formatCurrency(selectedAccount.current_balance)}
-            </Typography>
-          </DialogTitle>
-          
-          <Tabs 
-            value={activeTab} 
-            onChange={handleTabChange}
-            indicatorColor="primary"
-            textColor="primary"
-            variant="fullWidth"
-            sx={{ borderBottom: 1, borderColor: 'divider', px: 3 }}
-          >
-            <Tab label="Overview" />
-            <Tab label="Monthly Spending" />
-            <Tab label="Categories" />
-            <Tab label="All Transactions" />
-          </Tabs>
-          
-          <DialogContent sx={{ px: 4, py: 3 }}>
-            {loadingTransactions ? (
-              <Box sx={{ display: 'flex', justifyContent: 'center', my: 8 }}>
-                <CircularProgress sx={{ color: '#4CAF50' }} />
-              </Box>
-            ) : transactionError ? (
-              <Typography color="error" sx={{ mt: 2 }}>
-                {transactionError}
-              </Typography>
-            ) : transactions.length === 0 ? (
-              <Box sx={{ textAlign: 'center', my: 8 }}>
-                <Typography variant="h6" gutterBottom>
-                  No transactions found
-                </Typography>
-                <Typography variant="body1" color="text.secondary">
-                  There are no transactions available for this account in the selected time period.
-                </Typography>
-              </Box>
-            ) : (
-              <>
-                {/* Overview Tab */}
-                {activeTab === 0 && (
-                  <Box>
-                    <Grid container spacing={4}>
-                      <Grid item xs={12} md={6}>
-                        <Paper 
-                          elevation={0}
-                          sx={{ 
-                            p: 3, 
-                            height: '100%',
-                            borderRadius: 3,
-                            border: '1px solid rgba(0, 0, 0, 0.08)'
-                          }}
-                        >
-                          <Typography variant="h6" gutterBottom>
-                            Summary Statistics
-                          </Typography>
-                          <List>
-                            <ListItem divider>
-                              <ListItemText 
-                                primary="Total Transactions" 
-                                secondary={processedTransactionData.summary.totalTransactions || 0} 
-                              />
-                            </ListItem>
-                            <ListItem divider>
-                              <ListItemText 
-                                primary="Total Inflow" 
-                                secondary={formatCurrency(processedTransactionData.summary.totalInflow || 0)} 
-                              />
-                            </ListItem>
-                            <ListItem divider>
-                              <ListItemText 
-                                primary="Total Outflow" 
-                                secondary={formatCurrency(processedTransactionData.summary.totalOutflow || 0)} 
-                              />
-                            </ListItem>
-                            <ListItem divider>
-                              <ListItemText 
-                                primary="Net Cash Flow" 
-                                secondary={formatCurrency(processedTransactionData.summary.netCashFlow || 0)}
-                                secondaryTypographyProps={{
-                                  sx: { 
-                                    color: (processedTransactionData.summary.netCashFlow || 0) >= 0 
-                                      ? '#2e7d32' 
-                                      : '#d32f2f' 
-                                  }
-                                }}
-                              />
-                            </ListItem>
-                            <ListItem>
-                              <ListItemText 
-                                primary="Average Transaction Size" 
-                                secondary={formatCurrency(processedTransactionData.summary.averageTransaction || 0)} 
-                              />
-                            </ListItem>
-                          </List>
-                        </Paper>
-                      </Grid>
-                      
-                      <Grid item xs={12} md={6}>
-                        <Paper 
-                          elevation={0}
-                          sx={{ 
-                            p: 3, 
-                            height: '100%',
-                            borderRadius: 3,
-                            border: '1px solid rgba(0, 0, 0, 0.08)'
-                          }}
-                        >
-                          <Typography variant="h6" gutterBottom>
-                            Top Spending Categories
-                          </Typography>
-                          {processedTransactionData.categoryData.length > 0 ? (
-                            <Box sx={{ height: 300, mt: 3 }}>
-                              <ResponsiveContainer width="100%" height="100%">
-                                <PieChart>
-                                  <Pie
-                                    data={processedTransactionData.categoryData.slice(0, 5)}
-                                    cx="50%"
-                                    cy="50%"
-                                    labelLine={false}
-                                    outerRadius={80}
-                                    fill="#8884d8"
-                                    dataKey="value"
-                                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                                  >
-                                    {processedTransactionData.categoryData.slice(0, 5).map((entry, index) => (
-                                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                                    ))}
-                                  </Pie>
-                                  <Legend />
-                                  <RechartsTooltip formatter={(value) => formatCurrency(value)} />
-                                </PieChart>
-                              </ResponsiveContainer>
-                            </Box>
-                          ) : (
-                            <Typography variant="body2" color="text.secondary" sx={{ mt: 4, textAlign: 'center' }}>
-                              No category data available
-                            </Typography>
-                          )}
-                        </Paper>
-                      </Grid>
-                      
-                      <Grid item xs={12}>
-                        <Paper 
-                          elevation={0}
-                          sx={{ 
-                            p: 3, 
-                            borderRadius: 3,
-                            border: '1px solid rgba(0, 0, 0, 0.08)'
-                          }}
-                        >
-                          <Typography variant="h6" gutterBottom>
-                            Cash Flow by Month
-                          </Typography>
-                          <Box sx={{ height: 350, mt: 3 }}>
-                            <ResponsiveContainer width="100%" height="100%">
-                              <BarChart
-                                data={processedTransactionData.monthlyData}
-                                margin={{
-                                  top: 5,
-                                  right: 30,
-                                  left: 20,
-                                  bottom: 5,
-                                }}
-                              >
-                                <CartesianGrid strokeDasharray="3 3" />
-                                <XAxis dataKey="name" />
-                                <YAxis tickFormatter={(value) => `$${value}`} />
-                                <RechartsTooltip formatter={(value) => formatCurrency(value)} />
-                                <Legend />
-                                <Bar name="Money In" dataKey="inflow" fill="#4CAF50" />
-                                <Bar name="Money Out" dataKey="outflow" fill="#FF5252" />
-                              </BarChart>
-                            </ResponsiveContainer>
-                          </Box>
-                        </Paper>
-                      </Grid>
-                    </Grid>
-                  </Box>
-                )}
-                
-                {/* Monthly Spending Tab */}
-                {activeTab === 1 && (
-                  <Box>
-                    <Paper 
-                      elevation={0}
-                      sx={{ 
-                        p: 3, 
-                        borderRadius: 3,
-                        border: '1px solid rgba(0, 0, 0, 0.08)'
+              {accounts.length > 0 && (
+                <Box sx={{ p: 3, display: 'flex', justifyContent: 'center' }}>
+                  <Tooltip title="Remove all linked bank accounts">
+                    <Button
+                      variant="outlined"
+                      color="error"
+                      onClick={handleConfirmAllUnlink}
+                      startIcon={<DeleteSweepRoundedIcon />}
+                      sx={{
+                        borderRadius: 8,
+                        py: 1,
+                        px: 3,
+                        textTransform: 'none',
+                        fontWeight: 500,
+                        borderColor: 'rgba(211, 47, 47, 0.3)',
+                        '&:hover': {
+                          backgroundColor: 'rgba(211, 47, 47, 0.04)',
+                          borderColor: 'error.main'
+                        }
                       }}
                     >
-                      <Typography variant="h6" gutterBottom>
-                        Monthly Spending Trend
-                      </Typography>
-                      <Box sx={{ height: 400, mt: 3 }}>
-                        <ResponsiveContainer width="100%" height="100%">
-                          <LineChart
-                            data={processedTransactionData.monthlyData}
-                            margin={{
-                              top: 5,
-                              right: 30,
-                              left: 20,
-                              bottom: 5,
-                            }}
-                          >
-                            <CartesianGrid strokeDasharray="3 3" />
-                            <XAxis dataKey="name" />
-                            <YAxis tickFormatter={(value) => `$${value}`} />
-                            <RechartsTooltip formatter={(value) => formatCurrency(value)} />
-                            <Legend />
-                            <Line 
-                              type="monotone" 
-                              name="Money In" 
-                              dataKey="inflow" 
-                              stroke="#4CAF50" 
-                              activeDot={{ r: 8 }} 
-                              strokeWidth={2}
-                            />
-                            <Line 
-                              type="monotone" 
-                              name="Money Out" 
-                              dataKey="outflow" 
-                              stroke="#FF5252" 
-                              activeDot={{ r: 8 }} 
-                              strokeWidth={2}
-                            />
-                          </LineChart>
-                        </ResponsiveContainer>
-                      </Box>
-                    </Paper>
-                  </Box>
-                )}
-                
-                {/* Categories Tab */}
-                {activeTab === 2 && (
-                  <Box>
-                    <Grid container spacing={4}>
-                      <Grid item xs={12} md={7}>
-                        <Paper 
-                          elevation={0}
-                          sx={{ 
-                            p: 3, 
-                            borderRadius: 3,
-                            border: '1px solid rgba(0, 0, 0, 0.08)'
-                          }}
-                        >
-                          <Typography variant="h6" gutterBottom>
-                            Spending by Category
-                          </Typography>
-                          <Box sx={{ height: 400, mt: 3 }}>
-                            <ResponsiveContainer width="100%" height="100%">
-                              <BarChart
-                                layout="vertical"
-                                data={processedTransactionData.categoryData.slice(0, 10)}
-                                margin={{
-                                  top: 5,
-                                  right: 30,
-                                  left: 100,
-                                  bottom: 5,
-                                }}
-                              >
-                                <CartesianGrid strokeDasharray="3 3" />
-                                <XAxis type="number" tickFormatter={(value) => `$${value}`} />
-                                <YAxis type="category" dataKey="name" />
-                                <RechartsTooltip formatter={(value) => formatCurrency(value)} />
-                                <Bar dataKey="value" fill="#8884d8">
-                                  {processedTransactionData.categoryData.slice(0, 10).map((entry, index) => (
-                                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                                  ))}
-                                </Bar>
-                              </BarChart>
-                            </ResponsiveContainer>
-                          </Box>
-                        </Paper>
-                      </Grid>
-                      <Grid item xs={12} md={5}>
-                        <Paper 
-                          elevation={0}
-                          sx={{ 
-                            p: 3, 
-                            borderRadius: 3,
-                            border: '1px solid rgba(0, 0, 0, 0.08)'
-                          }}
-                        >
-                          <Typography variant="h6" gutterBottom>
-                            Top Locations
-                          </Typography>
-                          {processedTransactionData.locationData.length > 0 ? (
-                            <List sx={{ mt: 2 }}>
-                              {processedTransactionData.locationData.map((location, index) => (
-                                <ListItem key={index} divider={index < processedTransactionData.locationData.length - 1}>
-                                  <ListItemText
-                                    primary={
-                                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                                        <PlaceIcon sx={{ mr: 1, color: COLORS[index % COLORS.length] }} />
-                                        {location.name}
-                                      </Box>
-                                    }
-                                    secondary={formatCurrency(location.value)}
-                                  />
-                                </ListItem>
-                              ))}
-                            </List>
-                          ) : (
-                            <Typography variant="body2" color="text.secondary" sx={{ mt: 4, textAlign: 'center' }}>
-                              No location data available
-                            </Typography>
-                          )}
-                        </Paper>
-                      </Grid>
-                    </Grid>
-                  </Box>
-                )}
-                
-                {/* All Transactions Tab */}
-                {activeTab === 3 && (
-                  <TableContainer component={Paper} sx={{ maxHeight: '60vh', borderRadius: 2 }}>
-                    <Table stickyHeader aria-label="transactions table">
-                      <TableHead>
-                        <TableRow>
-                          <TableCell><Box sx={{ display: 'flex', alignItems: 'center' }}><DateRangeIcon sx={{ mr: 1 }} /> Date</Box></TableCell>
-                          <TableCell>Description</TableCell>
-                          <TableCell><Box sx={{ display: 'flex', alignItems: 'center' }}><CategoryIcon sx={{ mr: 1 }} /> Category</Box></TableCell>
-                          <TableCell align="right">Amount</TableCell>
-                          <TableCell><Box sx={{ display: 'flex', alignItems: 'center' }}><PlaceIcon sx={{ mr: 1 }} /> Location</Box></TableCell>
-                        </TableRow>
-                      </TableHead>
-                      <TableBody>
-                        {transactions.map((transaction) => (
-                          <TableRow key={transaction.id} hover>
-                            <TableCell>{formatDate(transaction.date)}</TableCell>
-                            <TableCell>
-                              {transaction.merchant_name || transaction.name}
-                            </TableCell>
-                            <TableCell>
-                              {transaction.personal_finance_category?.primary ? (
-                                <Chip 
-                                  label={transaction.personal_finance_category.primary} 
-                                  size="small" 
-                                  sx={{ 
-                                    backgroundColor: COLORS[
-                                      transaction.personal_finance_category.primary.charCodeAt(0) % COLORS.length
-                                    ],
-                                    color: 'white'
-                                  }} 
-                                />
-                              ) : 'Uncategorized'}
-                            </TableCell>
-                            <TableCell align="right" sx={{ 
-                              color: transaction.amount < 0 ? '#2e7d32' : '#d32f2f',
-                              fontWeight: 500
-                            }}>
-                              {formatCurrency(Math.abs(transaction.amount))}
-                              {transaction.amount < 0 ? ' ↓' : ' ↑'}
-                            </TableCell>
-                            <TableCell>
-                              {transaction.location?.city 
-                                ? `${transaction.location.city}${transaction.location.region ? `, ${transaction.location.region}` : ''}`
-                                : '-'}
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </TableContainer>
-                )}
-              </>
-            )}
-          </DialogContent>
-          
-          <DialogActions sx={{ pb: 3, px: 3 }}>
-            <Button 
-              onClick={handleCloseTransactionsDialog} 
-              variant="outlined"
-              sx={{ 
-                textTransform: 'none',
-                fontWeight: 500,
-                borderRadius: 2
+                      Remove All Links
+                    </Button>
+                  </Tooltip>
+                </Box>
+              )}
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Confirm Remove All Dialog */}
+      <Dialog
+        open={confirmAllUnlinkOpen}
+        onClose={handleCloseConfirmAllUnlink}
+        PaperProps={{
+          sx: {
+            borderRadius: 4,
+            overflow: 'hidden',
+            boxShadow: '0 12px 32px rgba(0, 0, 0, 0.1)'
+          }
+        }}
+      >
+        <DialogTitle
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            p: 3,
+            pb: 2
+          }}
+        >
+          <Typography variant="h6" fontWeight={600}>
+            Remove All Linked Accounts?
+          </Typography>
+          <IconButton
+            onClick={handleCloseConfirmAllUnlink}
+            sx={{
+              color: 'text.secondary',
+              bgcolor: 'rgba(0, 0, 0, 0.04)',
+              '&:hover': {
+                bgcolor: 'rgba(0, 0, 0, 0.08)'
+              }
+            }}
+          >
+            <CloseRoundedIcon fontSize="small" />
+          </IconButton>
+        </DialogTitle>
+
+        <DialogContent sx={{ px: 3, pb: 2, pt: 1 }}>
+          <Typography variant="body1" color="text.secondary" align="center">
+            Are you sure you want to remove all linked bank accounts? This action cannot be undone.
+          </Typography>
+        </DialogContent>
+
+        <DialogActions sx={{ px: 3, py: 2, justifyContent: 'center', gap: 2 }}>
+          <Button
+            onClick={handleCloseConfirmAllUnlink}
+            variant="outlined"
+            sx={{
+              minWidth: 100,
+              borderRadius: 8,
+              textTransform: 'none',
+              fontWeight: 500,
+              py: 1,
+              px: 3
+            }}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={handleUnlinkAllAccounts}
+            variant="contained"
+            color="error"
+            sx={{
+              minWidth: 100,
+              borderRadius: 8,
+              textTransform: 'none',
+              fontWeight: 500,
+              py: 1,
+              px: 3,
+              boxShadow: 'none',
+              '&:hover': {
+                boxShadow: '0 4px 12px rgba(211, 47, 47, 0.2)'
+              }
+            }}
+          >
+            Remove All
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Transaction Details Dialog */}
+      <Dialog
+        open={transactionsDialogOpen}
+        onClose={handleCloseTransactionsDialog}
+        fullWidth
+        maxWidth="lg"
+        PaperProps={{
+          sx: {
+            borderRadius: 4,
+            overflow: 'hidden',
+            boxShadow: '0 12px 32px rgba(0, 0, 0, 0.1)',
+            height: '90vh'
+          }
+        }}
+      >
+        <DialogTitle
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            p: 3,
+            pb: 2,
+            borderBottom: '1px solid rgba(0, 0, 0, 0.08)'
+          }}
+        >
+          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            <Avatar
+              sx={{
+                mr: 2,
+                backgroundColor: 'rgba(105, 147, 255, 0.1)',
+                color: 'primary.main'
               }}
             >
-              Close
-            </Button>
-          </DialogActions>
-        </Dialog>
-      </Container>
+              <AttachMoneyRoundedIcon />
+            </Avatar>
+            <Box>
+              <Typography variant="h6" fontWeight={600}>
+                {selectedAccount?.name} Transactions
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                {selectedAccount?.institution_name} • {selectedAccount?.type.charAt(0).toUpperCase() + selectedAccount?.type.slice(1)}
+              </Typography>
+            </Box>
+          </Box>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <Box sx={{ textAlign: 'right' }}>
+              <Typography variant="body2" color="text.secondary">
+                Current Balance
+              </Typography>
+              <Typography
+                variant="h6"
+                sx={{
+                  fontWeight: 600,
+                  color: selectedAccount?.current_balance >= 0 ? '#4E8CB8' : '#B84E6C',
+                  fontFamily: '"Roboto Mono", monospace'
+                }}
+              >
+                {selectedAccount && formatCurrency(selectedAccount.current_balance)}
+              </Typography>
+            </Box>
+            <IconButton
+              onClick={handleCloseTransactionsDialog}
+              sx={{
+                color: 'text.secondary',
+                bgcolor: 'rgba(0, 0, 0, 0.04)',
+                '&:hover': {
+                  bgcolor: 'rgba(0, 0, 0, 0.08)'
+                }
+              }}
+            >
+              <CloseRoundedIcon />
+            </IconButton>
+          </Box>
+        </DialogTitle>
+
+        <Tabs
+          value={activeTab}
+          onChange={handleTabChange}
+          sx={{
+            px: 3,
+            borderBottom: '1px solid rgba(0, 0, 0, 0.08)',
+            '& .MuiTabs-indicator': {
+              backgroundColor: 'primary.main',
+              height: 3,
+              borderRadius: '3px 3px 0 0'
+            },
+            '& .MuiTab-root': {
+              textTransform: 'none',
+              fontWeight: 500,
+              px: 3,
+              py: 2
+            }
+          }}
+        >
+          <Tab label="Overview" />
+          <Tab label="Monthly Spending" />
+          <Tab label="Categories" />
+          <Tab label="All Transactions" />
+        </Tabs>
+
+        <DialogContent sx={{ p: 0 }}>
+          {loadingTransactions ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 400 }}>
+              <CircularProgress sx={{ color: 'primary.main' }} />
+            </Box>
+          ) : transactionError ? (
+            <Box sx={{ p: 4, textAlign: 'center' }}>
+              <Typography color="error" variant="h6" gutterBottom>
+                {transactionError}
+              </Typography>
+              <Button
+                variant="outlined"
+                onClick={() => fetchTransactionsForAccount(selectedAccount.id)}
+                sx={{
+                  mt: 2,
+                  borderRadius: 8,
+                  textTransform: 'none'
+                }}
+              >
+                Try Again
+              </Button>
+            </Box>
+          ) : transactions.length === 0 ? (
+            <Box sx={{ p: 4, textAlign: 'center', py: 8 }}>
+              <Typography variant="h6" gutterBottom>
+                No transactions found
+              </Typography>
+              <Typography variant="body1" color="text.secondary">
+                There are no transactions available for this account in the selected time period.
+              </Typography>
+            </Box>
+          ) : (
+            <Box sx={{ p: 3 }}>
+              {/* Overview Tab */}
+              {activeTab === 0 && (
+                <Box>
+                  <Grid container spacing={3}>
+                    <Grid item xs={12} md={6}>
+                      <Paper
+                        elevation={0}
+                        sx={{
+                          p: 3,
+                          height: '100%',
+                          borderRadius: 3,
+                          border: '1px solid rgba(0, 0, 0, 0.08)'
+                        }}
+                      >
+                        <Typography variant="h6" gutterBottom fontWeight={600}>
+                          Summary Statistics
+                        </Typography>
+                        <List disablePadding>
+                          <ListItem
+                            sx={{
+                              px: 0,
+                              py: 2,
+                              borderBottom: '1px solid rgba(0, 0, 0, 0.08)'
+                            }}
+                          >
+                            <ListItemText
+                              primary="Total Transactions"
+                              primaryTypographyProps={{
+                                variant: 'body2',
+                                color: 'text.secondary'
+                              }}
+                            />
+                            <Typography variant="body1" fontWeight={500}>
+                              {processedTransactionData.summary.totalTransactions || 0}
+                            </Typography>
+                          </ListItem>
+                          <ListItem
+                            sx={{
+                              px: 0,
+                              py: 2,
+                              borderBottom: '1px solid rgba(0, 0, 0, 0.08)'
+                            }}
+                          >
+                            <ListItemText
+                              primary="Total Income"
+                              primaryTypographyProps={{
+                                variant: 'body2',
+                                color: 'text.secondary'
+                              }}
+                            />
+                            <Typography
+                              variant="body1"
+                              fontWeight={500}
+                              sx={{
+                                color: '#4E8CB8',
+                                fontFamily: '"Roboto Mono", monospace'
+                              }}
+                            >
+                              {formatCurrency(processedTransactionData.summary.totalInflow || 0)}
+                            </Typography>
+                          </ListItem>
+                          <ListItem
+                            sx={{
+                              px: 0,
+                              py: 2,
+                              borderBottom: '1px solid rgba(0, 0, 0, 0.08)'
+                            }}
+                          >
+                            <ListItemText
+                              primary="Total Spending"
+                              primaryTypographyProps={{
+                                variant: 'body2',
+                                color: 'text.secondary'
+                              }}
+                            />
+                            <Typography
+                              variant="body1"
+                              fontWeight={500}
+                              sx={{
+                                color: '#B84E6C',
+                                fontFamily: '"Roboto Mono", monospace'
+                              }}
+                            >
+                              {formatCurrency(processedTransactionData.summary.totalOutflow || 0)}
+                            </Typography>
+                          </ListItem>
+                          <ListItem
+                            sx={{
+                              px: 0,
+                              py: 2,
+                              borderBottom: '1px solid rgba(0, 0, 0, 0.08)'
+                            }}
+                          >
+                            <ListItemText
+                              primary="Net Cash Flow"
+                              primaryTypographyProps={{
+                                variant: 'body2',
+                                color: 'text.secondary'
+                              }}
+                            />
+                            <Typography
+                              variant="body1"
+                              fontWeight={500}
+                              sx={{
+                                color: (processedTransactionData.summary.netCashFlow || 0) >= 0 ? '#4E8CB8' : '#B84E6C',
+                                fontFamily: '"Roboto Mono", monospace'
+                              }}
+                            >
+                              {formatCurrency(processedTransactionData.summary.netCashFlow || 0)}
+                            </Typography>
+                          </ListItem>
+                          <ListItem
+                            sx={{
+                              px: 0,
+                              py: 2
+                            }}
+                          >
+                            <ListItemText
+                              primary="Average Transaction"
+                              primaryTypographyProps={{
+                                variant: 'body2',
+                                color: 'text.secondary'
+                              }}
+                            />
+                            <Typography
+                              variant="body1"
+                              fontWeight={500}
+                              sx={{
+                                fontFamily: '"Roboto Mono", monospace'
+                              }}
+                            >
+                              {formatCurrency(processedTransactionData.summary.averageTransaction || 0)}
+                            </Typography>
+                          </ListItem>
+                        </List>
+                      </Paper>
+                    </Grid>
+
+                    <Grid item xs={12} md={6}>
+                      <Paper
+                        elevation={0}
+                        sx={{
+                          p: 3,
+                          height: '100%',
+                          borderRadius: 3,
+                          border: '1px solid rgba(0, 0, 0, 0.08)'
+                        }}
+                      >
+                        <Typography variant="h6" gutterBottom fontWeight={600}>
+                          Top Spending Categories
+                        </Typography>
+                        {processedTransactionData.categoryData.length > 0 ? (
+                          <Box sx={{ height: 300, mt: 2 }}>
+                            <ResponsiveContainer width="100%" height="100%">
+                              <PieChart>
+                                <Pie
+                                  data={processedTransactionData.categoryData.slice(0, 5)}
+                                  cx="50%"
+                                  cy="50%"
+                                  labelLine={false}
+                                  outerRadius={90}
+                                  innerRadius={55}
+                                  fill="#8884d8"
+                                  dataKey="value"
+                                  paddingAngle={2}
+                                  label={({ name, percent }) => 
+                                    `${name} ${(percent * 100).toFixed(0)}%`}
+                                >
+                                  {processedTransactionData.categoryData.slice(0, 5).map((entry, index) => (
+                                    <Cell 
+                                      key={`cell-${index}`} 
+                                      fill={COLORS[index % COLORS.length]}
+                                      strokeWidth={1}
+                                      stroke="#ffffff" 
+                                    />
+                                  ))}
+                                </Pie>
+                                <Legend 
+                                  layout="horizontal" 
+                                  verticalAlign="bottom" 
+                                  align="center"
+                                  wrapperStyle={{ paddingTop: '20px' }}
+                                />
+                                <RechartsTooltip 
+                                  formatter={(value) => formatCurrency(value)}
+                                  contentStyle={{ 
+                                    borderRadius: 12,
+                                    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
+                                    border: 'none'
+                                  }}
+                                />
+                              </PieChart>
+                            </ResponsiveContainer>
+                          </Box>
+                        ) : (
+                          <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 300 }}>
+                            <Typography variant="body2" color="text.secondary">
+                              No category data available
+                            </Typography>
+                          </Box>
+                        )}
+                      </Paper>
+                    </Grid>
+
+                    <Grid item xs={12}>
+                      <Paper
+                        elevation={0}
+                        sx={{
+                          p: 3,
+                          borderRadius: 3,
+                          border: '1px solid rgba(0, 0, 0, 0.08)'
+                        }}
+                      >
+                        <Typography variant="h6" gutterBottom fontWeight={600}>
+                          Monthly Cash Flow
+                        </Typography>
+                        <Box sx={{ height: 350, mt: 2 }}>
+                          <ResponsiveContainer width="100%" height="100%">
+                            <BarChart
+                              data={processedTransactionData.monthlyData}
+                              margin={{
+                                top: 5,
+                                right: 20,
+                                left: 20,
+                                bottom: 20,
+                              }}
+                              barSize={20}
+                              barGap={8}
+                            >
+                              <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.3} />
+                              <XAxis 
+                                dataKey="name" 
+                                scale="point" 
+                                padding={{ left: 20, right: 20 }} 
+                                tickLine={false}
+                                axisLine={false}
+                                tick={{ fontSize: 12 }}
+                              />
+                              <YAxis 
+                                tickFormatter={(value) => `${value}`} 
+                                axisLine={false}
+                                tickLine={false}
+                                tick={{ fontSize: 12 }}
+                              />
+                              <RechartsTooltip 
+                                formatter={(value) => formatCurrency(value)}
+                                contentStyle={{ 
+                                  borderRadius: 12,
+                                  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
+                                  border: 'none'
+                                }}
+                              />
+                              <Legend 
+                                wrapperStyle={{ paddingTop: '10px' }}
+                                iconType="circle"
+                              />
+                              <Bar 
+                                name="Income" 
+                                dataKey="inflow" 
+                                fill="#6993FF" 
+                                radius={[4, 4, 0, 0]} 
+                              />
+                              <Bar 
+                                name="Spending" 
+                                dataKey="outflow" 
+                                fill="#69E7FF" 
+                                radius={[4, 4, 0, 0]} 
+                              />
+                            </BarChart>
+                          </ResponsiveContainer>
+                        </Box>
+                      </Paper>
+                    </Grid>
+                  </Grid>
+                </Box>
+              )}
+
+              {/* Monthly Spending Tab */}
+              {activeTab === 1 && (
+                <Box>
+                  <Paper
+                    elevation={0}
+                    sx={{
+                      p: 3,
+                      borderRadius: 3,
+                      border: '1px solid rgba(0, 0, 0, 0.08)'
+                    }}
+                  >
+                    <Typography variant="h6" gutterBottom fontWeight={600}>
+                      Monthly Spending Trend
+                    </Typography>
+                    <Box sx={{ height: 400, mt: 2 }}>
+                      <ResponsiveContainer width="100%" height="100%">
+                        <AreaChart
+                          data={processedTransactionData.monthlyData}
+                          margin={{
+                            top: 5,
+                            right: 30,
+                            left: 20,
+                            bottom: 30,
+                          }}
+                        >
+                          <defs>
+                            <linearGradient id="colorInflow" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="#6993FF" stopOpacity={0.3} />
+                              <stop offset="95%" stopColor="#6993FF" stopOpacity={0} />
+                            </linearGradient>
+                            <linearGradient id="colorOutflow" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="#69E7FF" stopOpacity={0.3} />
+                              <stop offset="95%" stopColor="#69E7FF" stopOpacity={0} />
+                            </linearGradient>
+                          </defs>
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.3} />
+                          <XAxis 
+                            dataKey="name" 
+                            tickLine={false}
+                            axisLine={false}
+                            tick={{ fontSize: 12 }}
+                            padding={{ left: 10, right: 10 }}
+                          />
+                          <YAxis 
+                            tickFormatter={(value) => `${value}`}
+                            axisLine={false}
+                            tickLine={false}
+                            tick={{ fontSize: 12 }}
+                          />
+                          <RechartsTooltip 
+                            formatter={(value) => formatCurrency(value)}
+                            contentStyle={{ 
+                              borderRadius: 12,
+                              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
+                              border: 'none'
+                            }}
+                          />
+                          <Legend 
+                            iconType="circle"
+                            wrapperStyle={{ paddingTop: '10px' }}
+                          />
+                          <Area
+                            type="monotone"
+                            name="Income"
+                            dataKey="inflow"
+                            stroke="#6993FF"
+                            fillOpacity={1}
+                            fill="url(#colorInflow)"
+                            strokeWidth={2}
+                          />
+                          <Area
+                            type="monotone"
+                            name="Spending"
+                            dataKey="outflow"
+                            stroke="#69E7FF"
+                            fillOpacity={1}
+                            fill="url(#colorOutflow)"
+                            strokeWidth={2}
+                          />
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    </Box>
+                  </Paper>
+                </Box>
+              )}
+
+              {/* Categories Tab */}
+              {activeTab === 2 && (
+                <Box>
+                  <Grid container spacing={3}>
+                    <Grid item xs={12} md={7}>
+                      <Paper
+                        elevation={0}
+                        sx={{
+                          p: 3,
+                          borderRadius: 3,
+                          border: '1px solid rgba(0, 0, 0, 0.08)'
+                        }}
+                      >
+                        <Typography variant="h6" gutterBottom fontWeight={600}>
+                          Spending by Category
+                        </Typography>
+                        <Box sx={{ height: 400, mt: 2 }}>
+                          <ResponsiveContainer width="100%" height="100%">
+                            <BarChart
+                              layout="vertical"
+                              data={processedTransactionData.categoryData.slice(0, 8)}
+                              margin={{
+                                top: 5,
+                                right: 30,
+                                left: 80,
+                                bottom: 5,
+                              }}
+                              barSize={24}
+                            >
+                              <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} opacity={0.3} />
+                              <XAxis 
+                                type="number" 
+                                tickFormatter={(value) => `${value}`}
+                                axisLine={false}
+                                tickLine={false}
+                                tick={{ fontSize: 12 }}
+                              />
+                              <YAxis 
+                                type="category" 
+                                dataKey="name" 
+                                tick={{ fontSize: 12 }}
+                                axisLine={false}
+                                tickLine={false}
+                              />
+                              <RechartsTooltip 
+                                formatter={(value) => formatCurrency(value)}
+                                contentStyle={{ 
+                                  borderRadius: 12,
+                                  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
+                                  border: 'none'
+                                }}
+                              />
+                              <Bar dataKey="value" radius={[0, 4, 4, 0]}>
+                                {processedTransactionData.categoryData.slice(0, 8).map((entry, index) => (
+                                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                ))}
+                              </Bar>
+                            </BarChart>
+                          </ResponsiveContainer>
+                        </Box>
+                      </Paper>
+                    </Grid>
+                    <Grid item xs={12} md={5}>
+                      <Paper
+                        elevation={0}
+                        sx={{
+                          p: 3,
+                          borderRadius: 3,
+                          border: '1px solid rgba(0, 0, 0, 0.08)',
+                          height: '100%'
+                        }}
+                      >
+                        <Typography variant="h6" gutterBottom fontWeight={600}>
+                          Top Locations
+                        </Typography>
+                        {processedTransactionData.locationData.length > 0 ? (
+                          <List sx={{ mt: 1 }}>
+                            {processedTransactionData.locationData.map((location, index) => (
+                              <ListItem
+                                key={index}
+                                sx={{
+                                  px: 0,
+                                  py: 2,
+                                  borderBottom: index < processedTransactionData.locationData.length - 1 ? 
+                                    '1px solid rgba(0, 0, 0, 0.08)' : 'none'
+                                }}
+                              >
+                                <ListItemIcon sx={{ minWidth: 40 }}>
+                                  <Avatar
+                                    sx={{
+                                      width: 28,
+                                      height: 28,
+                                      backgroundColor: COLORS[index % COLORS.length],
+                                      color: 'white',
+                                      fontSize: '0.8rem'
+                                    }}
+                                  >
+                                    <PlaceRoundedIcon fontSize="small" />
+                                  </Avatar>
+                                </ListItemIcon>
+                                <ListItemText
+                                  primary={location.name}
+                                  primaryTypographyProps={{
+                                    fontWeight: 500
+                                  }}
+                                />
+                                <Typography 
+                                  variant="body2" 
+                                  sx={{ 
+                                    fontWeight: 500,
+                                    fontFamily: '"Roboto Mono", monospace'
+                                  }}
+                                >
+                                  {formatCurrency(location.value)}
+                                </Typography>
+                              </ListItem>
+                            ))}
+                          </List>
+                        ) : (
+                          <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 200 }}>
+                            <Typography variant="body2" color="text.secondary">
+                              No location data available
+                            </Typography>
+                          </Box>
+                        )}
+                      </Paper>
+                    </Grid>
+                  </Grid>
+                </Box>
+              )}
+
+              {/* All Transactions Tab */}
+              {activeTab === 3 && (
+                <TableContainer
+                  component={Paper}
+                  sx={{
+                    maxHeight: '60vh',
+                    borderRadius: 3,
+                    border: '1px solid rgba(0, 0, 0, 0.08)',
+                    boxShadow: 'none',
+                    overflowY: 'auto',
+                    '&::-webkit-scrollbar': {
+                      width: '6px',
+                    },
+                    '&::-webkit-scrollbar-track': {
+                      background: '#f1f1f1',
+                      borderRadius: '10px',
+                    },
+                    '&::-webkit-scrollbar-thumb': {
+                      background: '#c1c1c1',
+                      borderRadius: '10px',
+                    },
+                    '&::-webkit-scrollbar-thumb:hover': {
+                      background: '#a8a8a8',
+                    },
+                  }}
+                >
+                  <Table stickyHeader aria-label="transactions table">
+                    <TableHead>
+                      <TableRow>
+                        <TableCell sx={{ backgroundColor: 'white', py: 2 }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', fontWeight: 600 }}>
+                            <DateRangeRoundedIcon sx={{ mr: 1, fontSize: 20 }} /> Date
+                          </Box>
+                        </TableCell>
+                        <TableCell sx={{ backgroundColor: 'white', py: 2, fontWeight: 600 }}>
+                          Description
+                        </TableCell>
+                        <TableCell sx={{ backgroundColor: 'white', py: 2 }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', fontWeight: 600 }}>
+                            <CategoryRoundedIcon sx={{ mr: 1, fontSize: 20 }} /> Category
+                          </Box>
+                        </TableCell>
+                        <TableCell align="right" sx={{ backgroundColor: 'white', py: 2, fontWeight: 600 }}>
+                          Amount
+                        </TableCell>
+                        <TableCell sx={{ backgroundColor: 'white', py: 2 }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', fontWeight: 600 }}>
+                            <PlaceRoundedIcon sx={{ mr: 1, fontSize: 20 }} /> Location
+                          </Box>
+                        </TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {transactions.map((transaction) => (
+                        <TableRow
+                          key={transaction.id}
+                          hover
+                          sx={{
+                            '&:hover': {
+                              backgroundColor: 'rgba(105, 147, 255, 0.04)'
+                            },
+                            transition: 'background-color 0.2s ease'
+                          }}
+                        >
+                          <TableCell sx={{ py: 2 }}>{formatDate(transaction.date)}</TableCell>
+                          <TableCell sx={{ py: 2 }}>
+                            {transaction.merchant_name || transaction.name}
+                          </TableCell>
+                          <TableCell sx={{ py: 2 }}>
+                            {transaction.personal_finance_category?.primary ? (
+                              <Chip
+                                label={transaction.personal_finance_category.primary}
+                                size="small"
+                                sx={{
+                                  height: 24,
+                                  backgroundColor: COLORS[
+                                    transaction.personal_finance_category.primary.charCodeAt(0) % COLORS.length
+                                  ],
+                                  color: 'white',
+                                  fontWeight: 500,
+                                  textTransform: 'capitalize',
+                                  px: 1
+                                }}
+                              />
+                            ) : (
+                              <Chip
+                                label="Uncategorized"
+                                size="small"
+                                sx={{
+                                  height: 24,
+                                  backgroundColor: 'rgba(0, 0, 0, 0.08)',
+                                  color: 'text.secondary',
+                                  fontWeight: 500,
+                                  px: 1
+                                }}
+                              />
+                            )}
+                          </TableCell>
+                          <TableCell
+                            align="right"
+                            sx={{
+                              color: transaction.amount < 0 ? '#4E8CB8' : '#B84E6C',
+                              fontWeight: 600,
+                              fontFamily: '"Roboto Mono", monospace',
+                              py: 2
+                            }}
+                          >
+                            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 0.5 }}>
+                              {formatCurrency(Math.abs(transaction.amount))}
+                              {transaction.amount < 0 ? (
+                                <ArrowDownwardRoundedIcon sx={{ fontSize: 16 }} />
+                              ) : (
+                                <ArrowUpwardRoundedIcon sx={{ fontSize: 16 }} />
+                              )}
+                            </Box>
+                          </TableCell>
+                          <TableCell sx={{ py: 2 }}>
+                            {transaction.location?.city
+                              ? `${transaction.location.city}${transaction.location.region ? `, ${transaction.location.region}` : ''}`
+                              : '—'}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              )}
+            </Box>
+          )}
+        </DialogContent>
+      </Dialog>
     </Box>
   );
 };
 
-export default Dashboard; 
+export default Dashboard;
