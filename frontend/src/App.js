@@ -5,7 +5,7 @@ import AuthProvider from './context/AuthContext';
 import PrivateRoute from './components/PrivateRoute';
 import Login from './components/Login';
 import Register from './components/Register';
-import Dashboard from './components/Dashboard';
+import Dashboard from './components/dashboard/Dashboard';
 import Accounts from './components/Accounts';
 import Transactions from './components/Transactions';
 import Analytics from './components/Analytics';
