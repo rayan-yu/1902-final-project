@@ -279,7 +279,6 @@ const Cards = () => {
             <ListItem 
               key={index}
               disablePadding
-              button
               sx={{ 
                 mb: 0.5,
                 display: 'block',
@@ -920,7 +919,6 @@ const Cards = () => {
                   </Typography>
                   <List disablePadding>
                     <ListItem 
-                      button
                       sx={{ 
                         py: 1, 
                         borderRadius: 2,
@@ -941,7 +939,6 @@ const Cards = () => {
                     </ListItem>
                     
                     <ListItem 
-                      button
                       sx={{ 
                         py: 1, 
                         borderRadius: 2,
@@ -962,7 +959,6 @@ const Cards = () => {
                     </ListItem>
                     
                     <ListItem 
-                      button
                       sx={{ 
                         py: 1, 
                         borderRadius: 2,
@@ -983,7 +979,6 @@ const Cards = () => {
                     </ListItem>
                     
                     <ListItem 
-                      button
                       sx={{ 
                         py: 1, 
                         borderRadius: 2,

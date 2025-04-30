@@ -2,3 +2,4 @@ backend/.env
 backend/venv/
 old-plans/
 node_modules/
+transaction_data/

@@ -192,7 +192,6 @@ const Accounts = () => {
             <ListItem 
               key={index}
               disablePadding
-              button
               sx={{ 
                 mb: 0.5,
                 display: 'block',

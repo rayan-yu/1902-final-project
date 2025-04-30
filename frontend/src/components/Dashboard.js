@@ -304,7 +304,8 @@ const Dashboard = () => {
         start_date: formattedStartDate,
         end_date: formattedEndDate
       });
-      
+
+      // console.log('Transaction data:', transactionData);
       setTransactions(transactionData || []);
     } catch (err) {
       console.error('Error fetching transactions:', err);
@@ -316,12 +317,12 @@ const Dashboard = () => {
 
   // Process transaction data for charts
   const processedTransactionData = useMemo(() => {
-    if (!transactions.length) return { monthlyData: [], categoryData: [], locationData: [], summary: {} };
+    if (!transactions.length) return { monthlyData: [], categoryData: [], summary: {}, positiveCategoryTotals: {} };
 
     // Group transactions by month
     const monthlyData = {};
     const categoryTotals = {};
-    const locationTotals = {};
+    const positiveCategoryTotals = {};
     let totalInflow = 0;
     let totalOutflow = 0;
     let largestTransaction = { amount: 0 };
@@ -330,6 +331,7 @@ const Dashboard = () => {
       // Process for monthly chart
       const date = new Date(transaction.date);
       const monthYear = `${date.getMonth() + 1}/${date.getFullYear()}`;
+      console.log('Month year:', monthYear);
       
       if (!monthlyData[monthYear]) {
         monthlyData[monthYear] = { 
@@ -343,27 +345,22 @@ const Dashboard = () => {
         monthlyData[monthYear].inflow -= transaction.amount; // Make inflow positive
         totalInflow -= transaction.amount;
       } else {
-        monthlyData[monthYear].outflow += transaction.amount;
-        totalOutflow += transaction.amount;
+        monthlyData[monthYear].outflow -= -transaction.amount;
+        totalOutflow -= -transaction.amount;
       }
-      
       // Process for category chart
-      const category = transaction.personal_finance_category?.primary || 'Uncategorized';
-      if (transaction.amount > 0) { // Only track outflows for categories
-        if (!categoryTotals[category]) {
-          categoryTotals[category] = 0;
-        }
-        categoryTotals[category] += transaction.amount;
+      const category = transaction.category || 'Uncategorized';
+      if (!categoryTotals[category]) {
+        categoryTotals[category] = 0;
       }
-      
-      // Process for location data
-      if (transaction.location?.city) {
-        const location = transaction.location.city;
-        if (!locationTotals[location]) {
-          locationTotals[location] = 0;
-        }
-        locationTotals[location] += Math.abs(transaction.amount);
+      if (!positiveCategoryTotals[category]) {
+        positiveCategoryTotals[category] = 0;
       }
+      if (transaction.amount > 0) {
+        positiveCategoryTotals[category] -= -transaction.amount;
+      }
+      categoryTotals[category] -= -transaction.amount;
+      // console.log('Category totals:', categoryTotals);
       
       // Track largest transaction
       if (Math.abs(transaction.amount) > Math.abs(largestTransaction.amount)) {
@@ -381,16 +378,15 @@ const Dashboard = () => {
     const categoryDataArray = Object.entries(categoryTotals)
       .map(([name, value]) => ({ name, value }))
       .sort((a, b) => b.value - a.value);
-    
-    const locationDataArray = Object.entries(locationTotals)
+
+    const positiveCategoryDataArray = Object.entries(positiveCategoryTotals)
       .map(([name, value]) => ({ name, value }))
-      .sort((a, b) => b.value - a.value)
-      .slice(0, 5); // Top 5 locations
+      .sort((a, b) => b.value - a.value);
     
     return {
       monthlyData: monthlyDataArray,
       categoryData: categoryDataArray,
-      locationData: locationDataArray,
+      positiveCategoryTotals: positiveCategoryDataArray,
       summary: {
         totalTransactions: transactions.length,
         totalInflow,
@@ -410,7 +406,11 @@ const Dashboard = () => {
 
   // Calculate total balance
   const totalBalance = useMemo(() => {
-    return accounts.reduce((sum, account) => sum + account.current_balance, 0);
+    return accounts.reduce((sum, account) => {
+      // Ensure current_balance is a valid number before adding
+      const balance = account.current_balance ? parseFloat(account.current_balance) : 0;
+      return sum + (isNaN(balance) ? 0 : balance);
+    }, 0);
   }, [accounts]);
 
   // Navigation items
@@ -480,7 +480,6 @@ const Dashboard = () => {
             <ListItem 
               key={index}
               disablePadding
-              button
               sx={{ 
                 mb: 0.5,
                 display: 'block',
@@ -1657,12 +1656,12 @@ const Dashboard = () => {
                         <Typography variant="h6" gutterBottom fontWeight={600}>
                           Top Spending Categories
                         </Typography>
-                        {processedTransactionData.categoryData.length > 0 ? (
+                        {processedTransactionData.positiveCategoryTotals.length > 0 ? (
                           <Box sx={{ height: 300, mt: 2 }}>
                             <ResponsiveContainer width="100%" height="100%">
                               <PieChart>
                                 <Pie
-                                  data={processedTransactionData.categoryData.slice(0, 5)}
+                                  data={processedTransactionData.positiveCategoryTotals.slice(0, 5)}
                                   cx="50%"
                                   cy="50%"
                                   labelLine={false}
@@ -1674,7 +1673,7 @@ const Dashboard = () => {
                                   label={({ name, percent }) => 
                                     `${name} ${(percent * 100).toFixed(0)}%`}
                                 >
-                                  {processedTransactionData.categoryData.slice(0, 5).map((entry, index) => (
+                                  {processedTransactionData.positiveCategoryTotals.slice(0, 5).map((entry, index) => (
                                     <Cell 
                                       key={`cell-${index}`} 
                                       fill={COLORS[index % COLORS.length]}
@@ -1871,132 +1870,66 @@ const Dashboard = () => {
 
               {/* Categories Tab */}
               {activeTab === 2 && (
-                <Box>
-                  <Grid container spacing={3}>
-                    <Grid item xs={12} md={7}>
-                      <Paper
-                        elevation={0}
-                        sx={{
-                          p: 3,
-                          borderRadius: 3,
-                          border: '1px solid rgba(0, 0, 0, 0.08)'
-                        }}
-                      >
-                        <Typography variant="h6" gutterBottom fontWeight={600}>
-                          Spending by Category
-                        </Typography>
-                        <Box sx={{ height: 400, mt: 2 }}>
-                          <ResponsiveContainer width="100%" height="100%">
-                            <BarChart
-                              layout="vertical"
-                              data={processedTransactionData.categoryData.slice(0, 8)}
-                              margin={{
-                                top: 5,
-                                right: 30,
-                                left: 80,
-                                bottom: 5,
-                              }}
-                              barSize={24}
-                            >
-                              <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} opacity={0.3} />
-                              <XAxis 
-                                type="number" 
-                                tickFormatter={(value) => `${value}`}
-                                axisLine={false}
-                                tickLine={false}
-                                tick={{ fontSize: 12 }}
-                              />
-                              <YAxis 
-                                type="category" 
-                                dataKey="name" 
-                                tick={{ fontSize: 12 }}
-                                axisLine={false}
-                                tickLine={false}
-                              />
-                              <RechartsTooltip 
-                                formatter={(value) => formatCurrency(value)}
-                                contentStyle={{ 
-                                  borderRadius: 12,
-                                  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
-                                  border: 'none'
-                                }}
-                              />
-                              <Bar dataKey="value" radius={[0, 4, 4, 0]}>
-                                {processedTransactionData.categoryData.slice(0, 8).map((entry, index) => (
-                                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                                ))}
-                              </Bar>
-                            </BarChart>
-                          </ResponsiveContainer>
-                        </Box>
-                      </Paper>
-                    </Grid>
-                    <Grid item xs={12} md={5}>
-                      <Paper
-                        elevation={0}
-                        sx={{
-                          p: 3,
-                          borderRadius: 3,
-                          border: '1px solid rgba(0, 0, 0, 0.08)',
-                          height: '100%'
-                        }}
-                      >
-                        <Typography variant="h6" gutterBottom fontWeight={600}>
-                          Top Locations
-                        </Typography>
-                        {processedTransactionData.locationData.length > 0 ? (
-                          <List sx={{ mt: 1 }}>
-                            {processedTransactionData.locationData.map((location, index) => (
-                              <ListItem
-                                key={index}
-                                sx={{
-                                  px: 0,
-                                  py: 2,
-                                  borderBottom: index < processedTransactionData.locationData.length - 1 ? 
-                                    '1px solid rgba(0, 0, 0, 0.08)' : 'none'
-                                }}
-                              >
-                                <ListItemIcon sx={{ minWidth: 40 }}>
-                                  <Avatar
-                                    sx={{
-                                      width: 28,
-                                      height: 28,
-                                      backgroundColor: COLORS[index % COLORS.length],
-                                      color: 'white',
-                                      fontSize: '0.8rem'
-                                    }}
-                                  >
-                                    <PlaceRoundedIcon fontSize="small" />
-                                  </Avatar>
-                                </ListItemIcon>
-                                <ListItemText
-                                  primary={location.name}
-                                  primaryTypographyProps={{
-                                    fontWeight: 500
-                                  }}
-                                />
-                                <Typography 
-                                  variant="body2" 
-                                  sx={{ 
-                                    fontWeight: 500,
-                                    fontFamily: '"Roboto Mono", monospace'
-                                  }}
-                                >
-                                  {formatCurrency(location.value)}
-                                </Typography>
-                              </ListItem>
+                <Box sx={{ width: '100%', p: 3 }}>
+                  <Paper
+                    elevation={0}
+                    sx={{
+                      borderRadius: 3,
+                      border: '1px solid rgba(0, 0, 0, 0.08)',
+                      p: 3,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center'
+                    }}
+                  >
+                    <Typography variant="h6" gutterBottom fontWeight={600}>
+                      Spending by Category
+                    </Typography>
+                    <Box sx={{ height: 400, width: '100%', mt: 2 }}>
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart
+                          layout="vertical"
+                          data={processedTransactionData.categoryData.slice(0, 8)}
+                          margin={{
+                            top: 5,
+                            right: 30,
+                            left: 80,
+                            bottom: 5,
+                          }}
+                          barSize={24}
+                        >
+                          <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} opacity={0.3} />
+                          <XAxis 
+                            type="number" 
+                            tickFormatter={(value) => `${value}`}
+                            axisLine={false}
+                            tickLine={false}
+                            tick={{ fontSize: 12 }}
+                          />
+                          <YAxis 
+                            type="category" 
+                            dataKey="name" 
+                            tick={{ fontSize: 12 }}
+                            axisLine={false}
+                            tickLine={false}
+                          />
+                          <RechartsTooltip 
+                            formatter={(value) => formatCurrency(value)}
+                            contentStyle={{ 
+                              borderRadius: 12,
+                              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
+                              border: 'none'
+                            }}
+                          />
+                          <Bar dataKey="value" radius={[0, 4, 4, 0]}>
+                            {processedTransactionData.categoryData.slice(0, 8).map((entry, index) => (
+                              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                             ))}
-                          </List>
-                        ) : (
-                          <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 200 }}>
-                            <Typography variant="body2" color="text.secondary">
-                              No location data available
-                            </Typography>
-                          </Box>
-                        )}
-                      </Paper>
-                    </Grid>
-                  </Grid>
+                          </Bar>
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </Box>
+                  </Paper>
                 </Box>
               )}
 
@@ -2045,11 +1978,6 @@ const Dashboard = () => {
                         <TableCell align="right" sx={{ backgroundColor: 'white', py: 2, fontWeight: 600 }}>
                           Amount
                         </TableCell>
-                        <TableCell sx={{ backgroundColor: 'white', py: 2 }}>
-                          <Box sx={{ display: 'flex', alignItems: 'center', fontWeight: 600 }}>
-                            <PlaceRoundedIcon sx={{ mr: 1, fontSize: 20 }} /> Location
-                          </Box>
-                        </TableCell>
                       </TableRow>
                     </TableHead>
                     <TableBody>
@@ -2069,14 +1997,14 @@ const Dashboard = () => {
                             {transaction.merchant_name || transaction.name}
                           </TableCell>
                           <TableCell sx={{ py: 2 }}>
-                            {transaction.personal_finance_category?.primary ? (
+                            {transaction.category ? (
                               <Chip
-                                label={transaction.personal_finance_category.primary}
+                                label={transaction.category}
                                 size="small"
                                 sx={{
                                   height: 24,
                                   backgroundColor: COLORS[
-                                    transaction.personal_finance_category.primary.charCodeAt(0) % COLORS.length
+                                    transaction.category.charCodeAt(0) % COLORS.length
                                   ],
                                   color: 'white',
                                   fontWeight: 500,
@@ -2115,11 +2043,6 @@ const Dashboard = () => {
                                 <ArrowUpwardRoundedIcon sx={{ fontSize: 16 }} />
                               )}
                             </Box>
-                          </TableCell>
-                          <TableCell sx={{ py: 2 }}>
-                            {transaction.location?.city
-                              ? `${transaction.location.city}${transaction.location.region ? `, ${transaction.location.region}` : ''}`
-                              : '—'}
                           </TableCell>
                         </TableRow>
                       ))}

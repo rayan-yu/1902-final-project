@@ -13,6 +13,9 @@ from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 import logging
 import traceback
+import json
+import os
+import hashlib
 
 # Create logger
 logger = logging.getLogger(__name__)
@@ -201,6 +204,36 @@ class TransactionsList(APIView):
             transactions_query = transactions_query.filter(category=category)
         
         serializer = TransactionSerializer(transactions_query, many=True)
+        
+        # Create a unique filename based on the query parameters
+        filename_parts = [
+            f"user_{request.user.id}",
+            f"account_{account_id}" if account_id else "all_accounts",
+            f"start_{start_date}" if start_date else "no_start",
+            f"end_{end_date}" if end_date else "no_end",
+            f"cat_{category}" if category else "all_categories"
+        ]
+        filename_base = "_".join(filename_parts)
+        # Create a hash to shorten the filename if needed
+        filename_hash = hashlib.md5(filename_base.encode()).hexdigest()[:10]
+        
+        # Ensure the directory exists
+        json_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'transaction_data')
+        os.makedirs(json_dir, exist_ok=True)
+        
+        # Create the full filepath
+        filepath = os.path.join(json_dir, f"{filename_hash}.json")
+        
+        # Check if the file exists
+        if not os.path.exists(filepath):
+            try:
+                # Write the data to the file
+                with open(filepath, 'w') as f:
+                    json.dump(serializer.data, f, indent=2)
+                logger.info(f"Saved transaction data to {filepath}")
+            except Exception as e:
+                logger.error(f"Error saving transaction data to file: {str(e)}")
+        
         return Response(serializer.data)
 
 class UnlinkAccount(APIView):
