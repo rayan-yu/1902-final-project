@@ -27,6 +27,7 @@ Linking accounts
 - login and add those accounts
 - note this app is only implemented for checking accounts
 - cards tab is a placeholder for now
+- some frontend buttons are also just placeholders
 
 ## Project Overview
 I'm proposing a web application that leverages the Plaid API to create an organized, user-friendly financial dashboard. Instead of manually processing PDF bank statements, the application will directly connect to users' bank accounts through Plaid to automatically retrieve and categorize transactions, and provide visualizations of spending patterns and cash flow. This approach will enable real-time tracking of daily, weekly, and monthly spending across multiple financial institutions.
