@@ -5,7 +5,8 @@ from .views import (
     AccountsList,
     TransactionsList,
     UnlinkAccount,
-    UnlinkAllAccounts
+    UnlinkAllAccounts,
+    MockTransactions
 )
 
 urlpatterns = [
@@ -16,6 +17,7 @@ urlpatterns = [
     # Data retrieval endpoints
     path('accounts/', AccountsList.as_view(), name='accounts_list'),
     path('transactions/', TransactionsList.as_view(), name='transactions_list'),
+    path('mock-transactions/', MockTransactions.as_view(), name='mock_transactions'),
     
     # Account management endpoints
     path('accounts/<int:account_id>/unlink/', UnlinkAccount.as_view(), name='unlink_account'),

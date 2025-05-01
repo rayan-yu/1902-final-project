@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getAccounts, getTransactions } from '../utils/api';
+import { getAccounts, getTransactions, getMockTransactions } from '../utils/api';
 
 // Material UI Components
 import { 
@@ -30,7 +30,8 @@ import {
   Drawer,
   List,
   ListItem,
-  Fade
+  Fade,
+  Switch
 } from '@mui/material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
@@ -149,9 +150,15 @@ const Analytics = () => {
   const [tabValue, setTabValue] = useState(0);
   const [selectedAccount, setSelectedAccount] = useState('all');
   const [accounts, setAccounts] = useState([]);
-  const [startDate, setStartDate] = useState(null);
-  const [endDate, setEndDate] = useState(null);
+  const [transactions, setTransactions] = useState([]);
+  const [startDate, setStartDate] = useState(() => {
+    const date = new Date();
+    date.setFullYear(date.getFullYear() - 1);
+    return date;
+  });
+  const [endDate, setEndDate] = useState(new Date());
   const [activeIndex, setActiveIndex] = useState(0);
+  const [useMockData, setUseMockData] = useState(false);
 
   // Toggle drawer
   const toggleDrawer = () => {
@@ -171,16 +178,17 @@ const Analytics = () => {
   useEffect(() => {
     const loadAnalyticsData = async () => {
       try {
-        // In a real implementation, this would fetch from API
-        // For the mock, we'll simulate API delay
-        setTimeout(() => {
-          // Get accounts
-          setAccounts([
-            { id: '1', name: 'Chase Checking' },
-            { id: '2', name: 'Bank of America Checking' },
-          ]);
-          setLoading(false);
-        }, 1000);
+        setLoading(true);
+        setError(null);
+        
+        // Get accounts
+        const accountsData = await getAccounts();
+        setAccounts(accountsData);
+        
+        // Fetch initial transaction data based on selected account and date range
+        await fetchTransactionData();
+        
+        setLoading(false);
       } catch (err) {
         console.error('Error loading analytics data:', err);
         setError('Failed to load analytics data. Please try again later.');
@@ -190,6 +198,48 @@ const Analytics = () => {
 
     loadAnalyticsData();
   }, []);
+  
+  // Fetch transaction data based on filters
+  const fetchTransactionData = async () => {
+    try {
+      setLoading(true);
+      
+      const formattedStartDate = startDate.toISOString().split('T')[0];
+      const formattedEndDate = endDate.toISOString().split('T')[0];
+      
+      let transactionData;
+      
+      if (useMockData) {
+        // Fetch mock transaction data
+        transactionData = await getMockTransactions(
+          selectedAccount !== 'all' ? selectedAccount : null
+        );
+      } else {
+        // Fetch actual transaction data with filters
+        const filters = {
+          account_id: selectedAccount !== 'all' ? selectedAccount : null,
+          start_date: formattedStartDate,
+          end_date: formattedEndDate
+        };
+        
+        transactionData = await getTransactions(filters);
+      }
+      
+      setTransactions(transactionData);
+      setLoading(false);
+    } catch (err) {
+      console.error('Error fetching transaction data:', err);
+      setError('Failed to fetch transaction data. Please try again later.');
+      setLoading(false);
+    }
+  };
+  
+  // Refetch data when filters change
+  useEffect(() => {
+    if (accounts.length > 0) {
+      fetchTransactionData();
+    }
+  }, [selectedAccount, startDate, endDate, useMockData]);
   
   // Handle time range change
   const handleTimeRangeChange = (event, newRange) => {
@@ -208,15 +258,238 @@ const Analytics = () => {
     setSelectedAccount(event.target.value);
   };
   
+  // Toggle mock data
+  const handleToggleMockData = (event) => {
+    setUseMockData(event.target.checked);
+  };
+  
+  // Helper function to get appropriate icon for category
+  const getCategoryIcon = (category) => {
+    const lowerCategory = category.toLowerCase();
+    
+    if (lowerCategory.includes('food') || lowerCategory.includes('restaurant')) {
+      return <RestaurantRoundedIcon />;
+    } else if (lowerCategory.includes('home') || lowerCategory.includes('rent') || lowerCategory.includes('mortgage')) {
+      return <HomeRoundedIcon />;
+    } else if (lowerCategory.includes('transport') || lowerCategory.includes('auto') || lowerCategory.includes('gas')) {
+      return <LocalGasStationRoundedIcon />;
+    } else if (lowerCategory.includes('shop') || lowerCategory.includes('merchandise')) {
+      return <ShoppingCartRoundedIcon />;
+    } else if (lowerCategory.includes('health') || lowerCategory.includes('medical')) {
+      return <LocalHospitalRoundedIcon />;
+    } else if (lowerCategory.includes('travel') || lowerCategory.includes('flight')) {
+      return <FlightRoundedIcon />;
+    } else if (lowerCategory.includes('cash') || lowerCategory.includes('atm')) {
+      return <LocalAtmRoundedIcon />;
+    } else {
+      return <CategoryRoundedIcon />;
+    }
+  };
+  
+  // Helper function to get color for category
+  const getCategoryColor = (category) => {
+    const lowerCategory = category.toLowerCase();
+    
+    if (lowerCategory.includes('food') || lowerCategory.includes('restaurant')) {
+      return '#FF7F50';
+    } else if (lowerCategory.includes('home') || lowerCategory.includes('rent') || lowerCategory.includes('mortgage')) {
+      return '#9C27B0';
+    } else if (lowerCategory.includes('transport') || lowerCategory.includes('auto') || lowerCategory.includes('gas')) {
+      return '#4CAF50';
+    } else if (lowerCategory.includes('shop') || lowerCategory.includes('merchandise')) {
+      return '#6993FF';
+    } else if (lowerCategory.includes('health') || lowerCategory.includes('medical')) {
+      return '#F44336';
+    } else if (lowerCategory.includes('travel') || lowerCategory.includes('flight')) {
+      return '#FF9800';
+    } else if (lowerCategory.includes('cash') || lowerCategory.includes('atm')) {
+      return '#795548';
+    } else {
+      return '#607D8B'; // Default color
+    }
+  };
+  
+  // Process transaction data for charts
+  const processedData = useMemo(() => {
+    if (!transactions.length) return { 
+      monthlyData: [], 
+      weeklyData: [],
+      categoryData: [], 
+      trends: [],
+      summary: {}
+    };
+
+    // For monthly and weekly views
+    const monthlyData = {};
+    const weeklyData = {};
+    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    
+    // For categories
+    const categoryTotals = {};
+    
+    // Summary statistics
+    let totalInflow = 0;
+    let totalOutflow = 0;
+    let largestTransaction = { amount: 0 };
+    let previousPeriodSpending = 0;
+    let currentPeriodSpending = 0;
+    
+    // Get date for comparison (half of the date range)
+    const dateRange = endDate.getTime() - startDate.getTime();
+    const midPoint = new Date(startDate.getTime() + dateRange / 2);
+    
+    transactions.forEach(transaction => {
+      // Ensure we have a valid date and amount
+      if (!transaction.date) return;
+      
+      const date = new Date(transaction.date);
+      // Convert amount to number if it's a string, handle null/undefined
+      const amount = typeof transaction.amount === 'string' 
+        ? parseFloat(transaction.amount) 
+        : (transaction.amount || 0);
+      
+      // Process for monthly chart
+      const monthYear = `${monthNames[date.getMonth()]}`;
+      
+      if (!monthlyData[monthYear]) {
+        monthlyData[monthYear] = { 
+          name: monthYear, 
+          income: 0, 
+          expenses: 0 
+        };
+      }
+      
+      // Process for weekly chart
+      const dayOfWeek = dayNames[date.getDay()];
+      
+      if (!weeklyData[dayOfWeek]) {
+        weeklyData[dayOfWeek] = { 
+          name: dayOfWeek, 
+          income: 0, 
+          expenses: 0 
+        };
+      }
+      
+      // In finance APIs, negative amounts often represent outflows (expenses)
+      // and positive amounts represent inflows (income)
+      if (amount > 0) {
+        monthlyData[monthYear].expenses += Math.abs(amount);
+        weeklyData[dayOfWeek].expenses += Math.abs(amount);
+        totalOutflow += Math.abs(amount);
+      } else {
+        monthlyData[monthYear].income -= amount;
+        weeklyData[dayOfWeek].income -= amount;
+        totalInflow -= amount;
+      }
+      
+      // Process for category chart
+      const category = transaction.category ? 
+        (Array.isArray(transaction.category) ? transaction.category[0] : transaction.category) : 
+        'Uncategorized';
+      
+      if (!categoryTotals[category]) {
+        categoryTotals[category] = 0;
+      }
+      
+      // Add to category totals - use absolute value so expenses are positive numbers
+      categoryTotals[category] += Math.abs(amount);
+      
+      // Track largest transaction
+      if (Math.abs(amount) > Math.abs(largestTransaction.amount)) {
+        largestTransaction = transaction;
+      }
+      
+      // Calculate period spending for trends - add all transactions as absolute values
+      const absAmount = Math.abs(amount);
+      if (date.getTime() < midPoint.getTime()) {
+        previousPeriodSpending += absAmount;
+      } else {
+        currentPeriodSpending += absAmount;
+      }
+    });
+    
+    // Format data for charts
+    const monthlyDataArray = Object.values(monthlyData);
+    const weeklyDataArray = Object.entries(weeklyData)
+      .map(([name, data]) => ({ name, ...data }))
+      .sort((a, b) => {
+        const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+        return days.indexOf(a.name) - days.indexOf(b.name);
+      });
+    
+    // Category data
+    const categoryDataArray = Object.entries(categoryTotals)
+      .map(([name, value]) => ({ 
+        name, 
+        value,
+        icon: getCategoryIcon(name),
+        color: getCategoryColor(name)
+      }))
+      .sort((a, b) => b.value - a.value);
+    
+    // Calculate spending change for trends
+    const spendingChange = previousPeriodSpending > 0 ? 
+      ((currentPeriodSpending - previousPeriodSpending) / previousPeriodSpending) * 100 : 0;
+    
+    // Calculate savings rate
+    const savingsRate = totalInflow > 0 ? 
+      ((totalInflow - totalOutflow) / totalInflow) * 100 : 0;
+    
+    // Trends data
+    const trendsData = [
+      { 
+        name: 'Total Spending', 
+        value: totalOutflow, 
+        change: spendingChange, 
+        status: spendingChange <= 0 ? 'up' : 'down' 
+      },
+      { 
+        name: 'Average Transaction', 
+        value: transactions.length > 0 ? (totalInflow + totalOutflow) / transactions.length : 0,
+        change: 0, // Would need historical data to calculate
+        status: 'up'
+      },
+      { 
+        name: 'Total Income', 
+        value: totalInflow,
+        change: 0, // Would need historical data to calculate
+        status: 'up'
+      },
+      { 
+        name: 'Savings Rate', 
+        value: savingsRate > 0 ? savingsRate : 0,
+        change: 0, // Would need historical data to calculate
+        status: 'up'
+      },
+    ];
+    
+    return {
+      monthlyData: monthlyDataArray,
+      weeklyData: weeklyDataArray,
+      categoryData: categoryDataArray,
+      trends: trendsData,
+      summary: {
+        totalTransactions: transactions.length,
+        totalInflow,
+        totalOutflow,
+        netCashFlow: totalInflow - totalOutflow,
+        largestTransaction,
+        averageTransaction: transactions.length > 0 ? 
+          (totalInflow + totalOutflow) / transactions.length : 0
+      }
+    };
+  }, [transactions, startDate, endDate]);
+  
   // Get chart data based on time range
   const chartData = useMemo(() => {
-    return timeRange === 'monthly' ? mockMonthlyData : mockWeeklyData;
-  }, [timeRange]);
+    return timeRange === 'monthly' ? processedData.monthlyData : processedData.weeklyData;
+  }, [timeRange, processedData]);
   
   // Calculate total income and expenses
   const totals = useMemo(() => {
-    const incomeTotal = chartData.reduce((sum, item) => sum + item.income, 0);
-    const expensesTotal = chartData.reduce((sum, item) => sum + item.expenses, 0);
+    const incomeTotal = chartData.reduce((sum, item) => sum + (item.income || 0), 0);
+    const expensesTotal = chartData.reduce((sum, item) => sum + (item.expenses || 0), 0);
     return {
       income: incomeTotal,
       expenses: expensesTotal,
@@ -500,26 +773,21 @@ const Analytics = () => {
             </Box>
 
             <Box sx={{ display: 'flex', gap: 2 }}>
-              <Button
-                variant="outlined"
-                startIcon={<DownloadRoundedIcon />}
-                sx={{
-                  borderRadius: 2,
-                  textTransform: 'none',
-                  borderColor: 'rgba(105, 147, 255, 0.5)',
-                  color: 'primary.main',
-                  '&:hover': {
-                    borderColor: 'primary.main',
-                    backgroundColor: 'rgba(105, 147, 255, 0.04)'
-                  }
-                }}
-              >
-                Export Report
-              </Button>
+              <FormControl>
+                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                  <Typography variant="body2" sx={{ mr: 1 }}>Use Mock Data</Typography>
+                  <Switch
+                    checked={useMockData}
+                    onChange={handleToggleMockData}
+                    inputProps={{ 'aria-label': 'Toggle mock data' }}
+                  />
+                </Box>
+              </FormControl>
               
               <Button
                 variant="contained"
                 startIcon={<RefreshRoundedIcon />}
+                onClick={fetchTransactionData}
                 sx={{
                   borderRadius: 2,
                   textTransform: 'none',
@@ -558,7 +826,7 @@ const Analytics = () => {
                       <MenuItem value="all">All Accounts</MenuItem>
                       {accounts.map((account) => (
                         <MenuItem key={account.id} value={account.id}>
-                          {account.name}
+                          {account.name || account.official_name || 'Account'}
                         </MenuItem>
                       ))}
                     </Select>
@@ -661,7 +929,7 @@ const Analytics = () => {
             <Box>
               {/* Summary cards */}
               <Grid container spacing={3} sx={{ mb: 3 }}>
-                {mockTrends.map((trend, index) => (
+                {processedData.trends.map((trend, index) => (
                   <Grid item xs={12} sm={6} md={3} key={index}>
                     <Card
                       sx={{
@@ -682,7 +950,7 @@ const Analytics = () => {
                           </Typography>
                           <Chip
                             icon={trend.status === 'up' ? <ArrowUpwardRoundedIcon /> : <ArrowDownwardRoundedIcon />}
-                            label={`${trend.change > 0 ? '+' : ''}${trend.change}%`}
+                            label={`${trend.change > 0 ? '+' : ''}${trend.change.toFixed(1)}%`}
                             size="small"
                             sx={{
                               bgcolor: trend.status === 'up' ? 'rgba(102, 187, 106, 0.1)' : 'rgba(255, 72, 66, 0.1)',
@@ -704,12 +972,14 @@ const Analytics = () => {
                           }}
                         >
                           {trend.name === 'Savings Rate' 
-                            ? `${trend.value}%` 
+                            ? `${trend.value.toFixed(1)}%` 
                             : formatCurrency(trend.value)
                           }
                         </Typography>
                         <Typography variant="body2" sx={{ color: 'text.secondary', mt: 1 }}>
-                          {timeRange === 'monthly' ? 'Last 30 days' : 'Last 7 days'}
+                          {startDate && endDate ? 
+                            `${new Date(startDate).toLocaleDateString()} - ${new Date(endDate).toLocaleDateString()}` : 
+                            'Custom period'}
                         </Typography>
                       </CardContent>
                     </Card>
@@ -906,7 +1176,7 @@ const Analytics = () => {
                                     </g>
                                   );
                                 }}
-                                data={mockCategories}
+                                data={processedData.categoryData}
                                 cx="50%"
                                 cy="50%"
                                 labelLine={false}
@@ -916,7 +1186,7 @@ const Analytics = () => {
                                 dataKey="value"
                                 onMouseEnter={handlePieEnter}
                               >
-                                {mockCategories.map((entry, index) => (
+                                {processedData.categoryData.map((entry, index) => (
                                   <Cell key={`cell-${index}`} fill={entry.color} />
                                 ))}
                               </Pie>
@@ -930,7 +1200,7 @@ const Analytics = () => {
                           </Typography>
                           <Divider sx={{ mb: 2 }} />
                           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                            {mockCategories.slice(0, 5).map((category, index) => (
+                            {processedData.categoryData.slice(0, 5).map((category, index) => (
                               <Box key={index} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                                 <Box sx={{ display: 'flex', alignItems: 'center' }}>
                                   <Avatar
@@ -949,7 +1219,7 @@ const Analytics = () => {
                                       {category.name}
                                     </Typography>
                                     <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                                      {Math.round(category.value / mockCategories.reduce((sum, cat) => sum + cat.value, 0) * 100)}% of total
+                                      {Math.round(category.value / processedData.categoryData.reduce((sum, cat) => sum + cat.value, 0) * 100)}% of total
                                     </Typography>
                                   </Box>
                                 </Box>
@@ -983,7 +1253,7 @@ const Analytics = () => {
                         <ResponsiveContainer width="100%" height="100%">
                           <BarChart
                             layout="vertical"
-                            data={mockCategories}
+                            data={processedData.categoryData}
                             margin={{
                               top: 5,
                               right: 30,
@@ -1012,7 +1282,7 @@ const Analytics = () => {
                               barSize={36} 
                               radius={[0, 4, 4, 0]}
                             >
-                              {mockCategories.map((entry, index) => (
+                              {processedData.categoryData.map((entry, index) => (
                                 <Cell key={`cell-${index}`} fill={entry.color} />
                               ))}
                             </Bar>

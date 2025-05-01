@@ -8,7 +8,7 @@ const PlaidLink = () => {
   const [error, setError] = useState(null);
   const [linkToken, setLinkToken] = useState(null);
   const navigate = useNavigate();
-  
+
   // Memoize the initializePlaidLink function with useCallback to avoid
   // recreating it on every render
   const initializePlaidLink = useCallback((token) => {
@@ -25,7 +25,8 @@ const PlaidLink = () => {
         try {
           const response = await exchangePublicToken(public_token);
           console.log('Account linked successfully:', response);
-          navigate('/dashboard');
+          // Force a page reload to ensure proper state management
+          window.location.href = '/dashboard';
         } catch (err) {
           console.error('Error exchanging token:', err);
           setError('Failed to link account. Please try again.');
@@ -36,14 +37,15 @@ const PlaidLink = () => {
           console.error('Plaid Link error:', err);
           setError('An error occurred while connecting your account.');
         }
-        navigate('/dashboard');
+        // Use window.location.href instead of navigate to force a full page reload
+        window.location.href = '/dashboard';
       },
       onLoad: () => {
         // Open the Plaid Link as soon as it's loaded
         linkHandler.open();
       },
     });
-  }, [navigate]);
+  }, []);
 
   // Fetch the link token only once when component mounts
   useEffect(() => {

@@ -236,6 +236,52 @@ class TransactionsList(APIView):
         
         return Response(serializer.data)
 
+class MockTransactions(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        """Get mock transaction data from the sample file"""
+        account_id = request.query_params.get('account_id')
+        
+        try:
+            # Load mock transaction data
+            mock_file_path = os.path.join(
+                os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                'transaction_data',
+                'mock-transactions_4-24_4-25.json'
+            )
+            
+            with open(mock_file_path, 'r') as f:
+                mock_data = json.load(f)
+            
+            # If account_id is provided, filter transactions
+            if account_id:
+                # First check if the account exists and belongs to the user
+                account = get_object_or_404(Account, id=account_id)
+                if account.plaid_item.user != request.user:
+                    return Response(
+                        {"error": "You do not have permission to access this account"},
+                        status=status.HTTP_403_FORBIDDEN
+                    )
+                
+                # Add the account name to each transaction for consistency with real data
+                for transaction in mock_data:
+                    transaction['account_id'] = account_id
+                    
+            return Response(mock_data)
+        except FileNotFoundError:
+            return Response(
+                {"error": "Mock transaction data file not found"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            logger.error(f"Error fetching mock transactions: {str(e)}")
+            logger.error(traceback.format_exc())
+            return Response(
+                {"error": "Failed to fetch mock transactions"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
 class UnlinkAccount(APIView):
     permission_classes = [IsAuthenticated]
     

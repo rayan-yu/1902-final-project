@@ -15,7 +15,6 @@ import {
   Chip,
   CircularProgress,
   Tooltip,
-  Divider
 } from '@mui/material';
 
 // Icons

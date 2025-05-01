@@ -1,15 +1,44 @@
 # Personal Finance Tracker
+
+## Set up
+
+Clone repo
+Set up below
+
+.env
+- make a plaid dev account
+- set plaid id, plaid secret, plaid env in .env
+
+cd backend and create venv
+- activate your venv
+- pip install -r requirements.txt
+- python manage.py runserver
+- everything is locally hosted
+
+cd frontend and install needed components
+- npm install
+- npm start
+
+Linking accounts
+- click link accounts on dashboard
+- select continue as guest
+- in sandbox mode, you can choose any institutions from here: https://plaid.com/docs/sandbox/institutions/
+- search up the test institution you want, use user: user_good, pass: pass_good
+- login and add those accounts
+- note this app is only implemented for checking accounts
+- cards tab is a placeholder for now
+
 ## Project Overview
 I'm proposing a web application that leverages the Plaid API to create an organized, user-friendly financial dashboard. Instead of manually processing PDF bank statements, the application will directly connect to users' bank accounts through Plaid to automatically retrieve and categorize transactions, and provide visualizations of spending patterns and cash flow. This approach will enable real-time tracking of daily, weekly, and monthly spending across multiple financial institutions.
 
 ## Technical Overview
-The core functionality will involve connecting to financial institutions via the Plaid API, securely storing access tokens, and regularly syncing transaction data. I'll implement a PlaidManager class that handles authentication, data retrieval, and webhook processing for real-time updates.
+The core functionality will involve connecting to financial institutions via the Plaid API, securely storing access tokens, and regularly syncing transaction data. 
 
 ### Backend
-I'll build the backend using Django with a PostgreSQL database in Supabase to store processed financial data. The application will include RESTful APIs for data retrieval and manipulation, along with webhook endpoints to receive real-time transaction updates from Plaid.
+I'll build the backend using Django. The application will include RESTful APIs for data retrieval and manipulation, along with webhook endpoints to receive real-time transaction updates from Plaid.
 
 ### Frontend
-The user interface will be developed using React. I'll use Chart.js for data visualizations and dashboards to make financial information easily digestible. The application will use Plaid Link, a drop-in module, to securely connect user bank accounts.
+The user interface will be developed using React. The application will use Plaid Link, a drop-in module, to securely connect user bank accounts.
 
 ## Packages
 - **django**: Web framework for backend development

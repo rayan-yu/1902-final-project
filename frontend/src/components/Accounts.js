@@ -485,6 +485,9 @@ const Accounts = () => {
                             <Typography variant="h6" sx={{ fontWeight: 600, mb: 0.5 }}>
                               {account.name || account.official_name || 'Account'}
                             </Typography>
+                            <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                              {account.institution_name || 'Unknown Bank'}
+                            </Typography>
                             <Chip 
                               label={account.type?.toUpperCase() || 'BANK'} 
                               size="small" 
@@ -628,7 +631,7 @@ const Accounts = () => {
                       Institution
                     </Typography>
                     <Typography variant="body1" sx={{ fontWeight: 500 }}>
-                      {selectedAccount.institution || 'Unknown Bank'}
+                      {selectedAccount.institution_name || 'Unknown Bank'}
                     </Typography>
                   </Grid>
                   <Grid item xs={6}>

@@ -8,7 +8,9 @@ const Register = () => {
     username: '',
     email: '',
     password: '',
-    password2: ''
+    password2: '',
+    first_name: '',
+    last_name: ''
   });
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -16,7 +18,7 @@ const Register = () => {
   const { register } = useContext(AuthContext);
   const navigate = useNavigate();
   
-  const { username, email, password, password2 } = formData;
+  const { username, email, password, password2, first_name, last_name } = formData;
   
   const onChange = e => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -34,11 +36,16 @@ const Register = () => {
     setLoading(true);
     setError(null);
     
-    const result = await register({ username, email, password });
+    const result = await register({ username, email, password, password2, first_name, last_name });
     
     if (result.success) {
-      // Redirect to login after successful registration
-      navigate('/login');
+      if (result.data && result.data.tokens) {
+        // User is already logged in via AuthContext, redirect to dashboard
+        navigate('/dashboard');
+      } else {
+        // Redirect to login after successful registration
+        navigate('/login');
+      }
     } else {
       let errorMsg = 'Registration failed';
       
@@ -91,6 +98,28 @@ const Register = () => {
             name="email"
             autoComplete="email"
             value={email}
+            onChange={onChange}
+          />
+          <TextField
+            margin="normal"
+            required
+            fullWidth
+            id="first_name"
+            label="First Name"
+            name="first_name"
+            autoComplete="given-name"
+            value={first_name}
+            onChange={onChange}
+          />
+          <TextField
+            margin="normal"
+            required
+            fullWidth
+            id="last_name"
+            label="Last Name"
+            name="last_name"
+            autoComplete="family-name"
+            value={last_name}
             onChange={onChange}
           />
           <TextField

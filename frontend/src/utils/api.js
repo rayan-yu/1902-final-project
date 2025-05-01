@@ -80,7 +80,7 @@ export const loginUser = async (credentials) => {
 
 export const registerUser = async (userData) => {
   try {
-    const res = await axios.post('/api/register/', userData);
+    const res = await axios.post('/api/auth/register/', userData);
     return { success: true, data: res.data };
   } catch (err) {
     return {
@@ -164,5 +164,23 @@ export const getTransactions = async (filters = {}) => {
     return res.data;
   } catch (err) {
     throw err.response?.data || { error: 'Failed to fetch transactions' };
+  }
+};
+
+export const getMockTransactions = async (accountId = null) => {
+  try {
+    // Build query string
+    const queryParams = new URLSearchParams();
+    if (accountId) {
+      queryParams.append('account_id', accountId);
+    }
+    
+    const queryString = queryParams.toString();
+    const url = `/api/mock-transactions/${queryString ? `?${queryString}` : ''}`;
+    
+    const res = await axios.get(url);
+    return res.data;
+  } catch (err) {
+    throw err.response?.data || { error: 'Failed to fetch mock transactions' };
   }
 }; 

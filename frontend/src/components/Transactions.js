@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { getAccounts, getTransactions } from '../utils/api';
+import { getAccounts, getTransactions, getMockTransactions } from '../utils/api';
 
 // Material UI Components
 import { 
@@ -40,7 +40,9 @@ import {
   Drawer,
   List,
   ListItem,
-  Fade
+  Fade,
+  Switch,
+  FormControlLabel
 } from '@mui/material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
@@ -82,98 +84,6 @@ const COLORS = {
   info: '#37C7FF',
   warning: '#FFC107',
 };
-
-// Sample data for the mock
-const mockTransactions = [
-  { 
-    id: '1', 
-    date: '2025-04-15', 
-    name: 'Starbucks Coffee', 
-    amount: -8.95, 
-    category: 'Food & Drink',
-    account_id: '1',
-    account_name: 'Chase Checking',
-    payment_channel: 'in store',
-    location: 'San Francisco, CA'
-  },
-  { 
-    id: '2', 
-    date: '2025-04-14', 
-    name: 'Uber', 
-    amount: -24.56, 
-    category: 'Transportation',
-    account_id: '1',
-    account_name: 'Chase Checking',
-    payment_channel: 'mobile',
-    location: 'San Francisco, CA'
-  },
-  { 
-    id: '3', 
-    date: '2025-04-14', 
-    name: 'Amazon.com', 
-    amount: -67.89, 
-    category: 'Shopping',
-    account_id: '1',
-    account_name: 'Chase Checking',
-    payment_channel: 'online',
-    location: 'Seattle, WA'
-  },
-  { 
-    id: '4', 
-    date: '2025-04-12', 
-    name: 'Monthly Salary', 
-    amount: 4250.00, 
-    category: 'Income',
-    account_id: '1',
-    account_name: 'Chase Checking',
-    payment_channel: 'ach',
-    location: 'San Francisco, CA'
-  },
-  { 
-    id: '5', 
-    date: '2025-04-10', 
-    name: 'Whole Foods', 
-    amount: -89.24, 
-    category: 'Groceries',
-    account_id: '1',
-    account_name: 'Chase Checking',
-    payment_channel: 'in store',
-    location: 'San Francisco, CA'
-  },
-  { 
-    id: '6', 
-    date: '2025-04-09', 
-    name: 'Shell Gas', 
-    amount: -45.67, 
-    category: 'Transportation',
-    account_id: '2',
-    account_name: 'Bank of America Checking',
-    payment_channel: 'in store',
-    location: 'Oakland, CA'
-  },
-  { 
-    id: '7', 
-    date: '2025-04-05', 
-    name: 'Rent Payment', 
-    amount: -2200.00, 
-    category: 'Housing',
-    account_id: '1',
-    account_name: 'Chase Checking',
-    payment_channel: 'ach',
-    location: 'San Francisco, CA'
-  },
-  { 
-    id: '8', 
-    date: '2025-04-03', 
-    name: 'Netflix', 
-    amount: -15.99, 
-    category: 'Entertainment',
-    account_id: '2',
-    account_name: 'Bank of America Checking',
-    payment_channel: 'online',
-    location: 'Los Gatos, CA'
-  },
-];
 
 // Get category icon
 const getCategoryIcon = (category) => {
@@ -239,6 +149,7 @@ const Transactions = () => {
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [selectedTransaction, setSelectedTransaction] = useState(null);
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
+  const [useMockData, setUseMockData] = useState(true);
   
   // Format currency
   const formatCurrency = (amount) => {
@@ -271,32 +182,63 @@ const Transactions = () => {
   
   // Load transactions data with initial account filter if provided
   useEffect(() => {
-    const loadTransactionsData = async () => {
-      setLoading(true);
-      
-      try {
-        // In a real implementation, this would fetch from API with filters
-        // For the mock, we'll use the sample data but simulate API delay
-        setTimeout(() => {
-          let filteredTransactions = [...mockTransactions];
-          
-          // Filter by account if specified
-          if (selectedAccount && selectedAccount !== 'all') {
-            filteredTransactions = filteredTransactions.filter(t => t.account_id === selectedAccount);
-          }
-          
-          setTransactions(filteredTransactions);
-          setLoading(false);
-        }, 800);
-      } catch (err) {
-        console.error('Error loading transactions data:', err);
-        setError('Failed to load transactions. Please try again later.');
-        setLoading(false);
-      }
-    };
-
     loadTransactionsData();
-  }, [selectedAccount]);
+  }, [selectedAccount, useMockData]);
+
+  // Function to load transactions - either mock or real
+  const loadTransactionsData = async () => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      if (useMockData) {
+        // Load mock transactions
+        let transactionData;
+        
+        if (selectedAccount && selectedAccount !== 'all') {
+          transactionData = await getMockTransactions(selectedAccount);
+        } else {
+          transactionData = await getMockTransactions();
+        }
+        
+        setTransactions(transactionData || []);
+      } else {
+        // Load real transactions
+        // Get transactions for the past 24 months
+        const today = new Date();
+        const startDate = new Date();
+        startDate.setMonth(today.getMonth() - 24);
+        
+        const formattedStartDate = startDate.toISOString().split('T')[0];
+        const formattedEndDate = today.toISOString().split('T')[0];
+        
+        const filters = {
+          start_date: formattedStartDate,
+          end_date: formattedEndDate
+        };
+        
+        if (selectedAccount && selectedAccount !== 'all') {
+          filters.account_id = selectedAccount;
+        }
+        
+        const transactionData = await getTransactions(filters);
+        setTransactions(transactionData || []);
+      }
+    } catch (err) {
+      console.error('Error loading transactions data:', err);
+      setError('Failed to load transactions. Please try again later.');
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  // Toggle mock data
+  const handleToggleMockData = () => {
+    setUseMockData(!useMockData);
+    // When toggling, reset pagination and clear any errors
+    setPage(0);
+    setError(null);
+  };
   
   // Filter transactions based on search and filters
   const filteredTransactions = useMemo(() => {
@@ -630,6 +572,17 @@ const Transactions = () => {
             </Box>
 
             <Box sx={{ display: 'flex', gap: 2 }}>
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={useMockData}
+                    onChange={handleToggleMockData}
+                    color="primary"
+                  />
+                }
+                label="Use Mock Data"
+                sx={{ mr: 2 }}
+              />
               <Button
                 variant="outlined"
                 startIcon={<FilterListRoundedIcon />}
@@ -707,8 +660,11 @@ const Transactions = () => {
                       sx={{ borderRadius: 2 }}
                     >
                       <MenuItem value="all">All Accounts</MenuItem>
-                      <MenuItem value="1">Chase Checking</MenuItem>
-                      <MenuItem value="2">Bank of America Checking</MenuItem>
+                      {accounts && accounts.map((account) => (
+                        <MenuItem key={account.id} value={account.id}>
+                          {account.name} ({formatCurrency(account.current_balance)})
+                        </MenuItem>
+                      ))}
                     </Select>
                   </FormControl>
                 </Grid>

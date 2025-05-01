@@ -58,6 +58,13 @@ export const AuthProvider = ({ children }) => {
   const register = async (userData) => {
     try {
       const result = await registerUser(userData);
+      
+      if (result.success && result.data && result.data.tokens) {
+        // Auto-login after successful registration
+        setToken(result.data.tokens.access);
+        setUser({ isAuthenticated: true });
+      }
+      
       return result;
     } catch (error) {
       return {

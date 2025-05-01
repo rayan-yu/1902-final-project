@@ -10,12 +10,14 @@ import {
   Tabs,
   Tab,
   CircularProgress,
-  Button
+  Button,
+  Chip
 } from '@mui/material';
 
 // Icons
 import AttachMoneyRoundedIcon from '@mui/icons-material/AttachMoneyRounded';
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded';
+import DataObjectIcon from '@mui/icons-material/DataObject';
 
 // Transaction Tabs
 import OverviewTab from '../transactions-tabs/OverviewTab';
@@ -38,14 +40,20 @@ const TransactionsDialog = ({
   setLoadingTransactions,
   transactionError,
   setTransactionError,
-  formatCurrency
+  formatCurrency,
+  useMockData,
+  fetchMockTransactions
 }) => {
   // Fetch transactions when dialog opens
   useEffect(() => {
     if (open && account) {
-      fetchTransactionsForAccount(account.id);
+      if (useMockData) {
+        fetchMockTransactions(account.id);
+      } else {
+        fetchTransactionsForAccount(account.id);
+      }
     }
-  }, [open, account]);
+  }, [open, account, useMockData]);
 
   const fetchTransactionsForAccount = async (accountId) => {
     setLoadingTransactions(true);
@@ -114,6 +122,15 @@ const TransactionsDialog = ({
           <Box>
             <Typography variant="h6" fontWeight={600}>
               {account.name} Transactions
+              {useMockData && (
+                <Chip
+                  icon={<DataObjectIcon />}
+                  label="Mock Data"
+                  color="secondary"
+                  size="small"
+                  sx={{ ml: 1, fontSize: '0.7rem' }}
+                />
+              )}
             </Typography>
             <Typography variant="body2" color="text.secondary">
               {account.institution_name} • {account.type.charAt(0).toUpperCase() + account.type.slice(1)}
@@ -188,7 +205,7 @@ const TransactionsDialog = ({
             </Typography>
             <Button
               variant="outlined"
-              onClick={() => fetchTransactionsForAccount(account.id)}
+              onClick={() => useMockData ? fetchMockTransactions(account.id) : fetchTransactionsForAccount(account.id)}
               sx={{
                 mt: 2,
                 borderRadius: 8,
@@ -204,7 +221,9 @@ const TransactionsDialog = ({
               No transactions found
             </Typography>
             <Typography variant="body1" color="text.secondary">
-              There are no transactions available for this account in the selected time period.
+              {useMockData 
+                ? "No mock transactions available for this account. Try toggling mock data off to view real transactions."
+                : "There are no transactions available for this account in the selected time period."}
             </Typography>
           </Box>
         ) : (

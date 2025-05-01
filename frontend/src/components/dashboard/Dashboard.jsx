@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useContext, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../../context/AuthContext';
-import { getLinkToken, getAccounts } from '../../utils/api';
-import { useTheme, useMediaQuery, Box, Typography, CircularProgress, Paper, Grow } from '@mui/material';
+import { getLinkToken, getAccounts, getMockTransactions } from '../../utils/api';
+import { useTheme, useMediaQuery, Box, Typography, CircularProgress, Paper, Grow, FormControlLabel, Switch } from '@mui/material';
 
 // Import components
 import SideDrawer from './SideDrawer';
@@ -46,6 +46,9 @@ const Dashboard = () => {
   const [loadingTransactions, setLoadingTransactions] = useState(false);
   const [transactionError, setTransactionError] = useState(null);
   const [activeTab, setActiveTab] = useState(0);
+  
+  // Mock Data Toggle
+  const [useMockData, setUseMockData] = useState(false);
 
   // Handle menu
   const handleMenu = (event) => {
@@ -66,6 +69,20 @@ const Dashboard = () => {
     setDrawerOpen(!drawerOpen);
   };
 
+  // Toggle mock data
+  const handleToggleMockData = (event) => {
+    setUseMockData(event.target.checked);
+    // If we have a selected account, refresh its transactions
+    if (selectedAccount && transactionsDialogOpen) {
+      if (event.target.checked) {
+        fetchMockTransactions(selectedAccount.id);
+      } else {
+        // Reset transactions to empty
+        setTransactions([]);
+      }
+    }
+  };
+
   // Load account data
   const loadAccountData = async () => {
     try {
@@ -76,6 +93,7 @@ const Dashboard = () => {
       let accountsData = [];
       try {
         accountsData = await getAccounts();
+        console.log('Account data received:', accountsData);
       } catch (accountErr) {
         console.log('No accounts found or error fetching accounts', accountErr);
       }
@@ -142,11 +160,32 @@ const Dashboard = () => {
     setConfirmAllUnlinkOpen(false);
   };
 
+  // Fetch mock transactions for an account
+  const fetchMockTransactions = async (accountId) => {
+    setLoadingTransactions(true);
+    setTransactionError(null);
+    
+    try {
+      const mockData = await getMockTransactions(accountId);
+      setTransactions(mockData);
+    } catch (err) {
+      console.error('Error fetching mock transactions:', err);
+      setTransactionError('Failed to load mock transaction data.');
+    } finally {
+      setLoadingTransactions(false);
+    }
+  };
+
   const handleAccountClick = (account) => {
     // Only open transaction details for checking accounts
     if (account.subtype && account.subtype.toLowerCase() === 'checking') {
       setSelectedAccount(account);
       setTransactionsDialogOpen(true);
+      
+      // If mock data is enabled, load mock transactions
+      if (useMockData) {
+        fetchMockTransactions(account.id);
+      }
     }
   };
 
@@ -201,6 +240,20 @@ const Dashboard = () => {
           handleClose={handleClose} 
           handleLogout={handleLogout} 
         />
+
+        {/* Mock Data Toggle */}
+        <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
+          <FormControlLabel
+            control={
+              <Switch 
+                checked={useMockData}
+                onChange={handleToggleMockData}
+                color="primary"
+              />
+            }
+            label="Use Mock Transaction Data"
+          />
+        </Box>
 
         {/* Main Dashboard Content */}
         {loading ? (
@@ -284,6 +337,8 @@ const Dashboard = () => {
           transactionError={transactionError}
           setTransactionError={setTransactionError}
           formatCurrency={formatCurrency}
+          useMockData={useMockData}
+          fetchMockTransactions={fetchMockTransactions}
         />
       )}
     </Box>
