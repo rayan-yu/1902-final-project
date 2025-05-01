@@ -29,6 +29,56 @@ Linking accounts
 - cards tab is a placeholder for now
 - some frontend buttons are also just placeholders
 
+## architecture
+
+### Backend (Django)
+- **Structure**:
+  - `finance_tracker/` - Main Django project
+  - `finances/` - App containing Plaid integration
+  - `plaid_client.py` - Handles Plaid API connection with environment-based configuration
+  
+- **API Endpoints**:
+  - `/api/link-token/` - Generates Plaid link tokens
+  - `/api/accounts/` - Retrieves financial accounts
+  - `/api/transactions/` - Fetches transaction data
+  - `/api/mock-transactions/` - Provides mock transaction data
+  - `/api/register/` - User registration
+
+- **Auth System**:
+  - JWT authentication (tokens visible in curl requests)
+  - User registration/login functionality
+
+### Frontend (React)
+- **Tech Stack**:
+  - React with hooks and functional components
+  - Material UI for component styling
+  - React Router for navigation
+  - Recharts for data visualization
+  
+- **Main Components**:
+  - Navigation drawer with app sections
+  - Analytics dashboard with multiple chart types
+  - Date range and account filters
+  - Toggle between mock/real data
+
+- **Features**:
+  - Income vs expense visualizations
+  - Spending category breakdowns
+  - Financial trends and metrics
+  - Time range filtering (weekly/monthly)
+  - Responsive design for mobile/desktop
+
+### Data Flow
+1. User authenticates with JWT tokens
+2. Frontend requests financial data through API endpoints
+3. Backend communicates with Plaid API
+4. Data is processed and visualized in charts/tables
+
+### Development Notes
+- DEBUG mode is enabled
+- SSL verification disabled for Plaid API (generating warnings)
+- Using python-dotenv for environment variables
+
 ## Project Overview
 I'm proposing a web application that leverages the Plaid API to create an organized, user-friendly financial dashboard. Instead of manually processing PDF bank statements, the application will directly connect to users' bank accounts through Plaid to automatically retrieve and categorize transactions, and provide visualizations of spending patterns and cash flow. This approach will enable real-time tracking of daily, weekly, and monthly spending across multiple financial institutions.
 

@@ -39,7 +39,8 @@ def get_plaid_client():
     # Create API client with proper configurations
     api_client = plaid.ApiClient(configuration)
     
-    # Fix SSL verification issue (development only)
+    # WARNING: This disables SSL certificate verification and should NOT be used in production
+    # This is a major security risk in production environments
     api_client.rest_client.pool_manager.connection_pool_kw['cert_reqs'] = 'CERT_NONE'
     
     # Fix header handling - ensure all default headers have string values
