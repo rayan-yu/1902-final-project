@@ -25,6 +25,9 @@ Linking accounts
 - in sandbox mode, you can choose any institutions from here: https://plaid.com/docs/sandbox/institutions/
 - search up the test institution you want, use user: user_good, pass: pass_good
 - login and add those accounts
+- you can click on each checking account on the dashboard for a detailed view along with the other pages / analytics
+
+
 - note this app is only implemented for checking accounts
 - cards tab is a placeholder for now
 - some frontend buttons are also just placeholders
